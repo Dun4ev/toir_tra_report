@@ -1,0 +1,46 @@
+# Python build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv
+venv
+
+# Environment variables
+.env
+
+# IDE configuration files
+.vscode/
+.idea/
+
+# macOS files
+.DS_Store
+
+# PyInstaller files
+/build/
+/dist/
+*.spec
+
+# Папка с результатами работы скриптов
+toir_tra_report_test/
+
+# Project templates (should not be in repo)
+# Игнорируем все содержимое папки Template, но оставляем саму папку в репозитории.
+/Template/*
+!/Template/.gitkeep
+
+# Temporary Office files
+~$*.xlsx
+~$*.xltx
+
+
+
+# Игнорировать специфичные файлы данных и шаблонов Excel
+**/TZ.xlsx
+**/CommentSheet_Template.xltx
+**/Контакты суб-ов.xlsx
+
+# Игнорировать все файлы шаблонов Excel
+**/*.xltx
