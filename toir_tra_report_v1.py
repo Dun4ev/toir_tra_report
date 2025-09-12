@@ -565,7 +565,7 @@ def create_transmittal_gui():
 
 
     def open_github(event=None):
-        webbrowser.open_new("https://github.com/Dun4ev/toir_plan_checklist")
+        webbrowser.open_new("https://github.com/Dun4ev/toir_tra_report")
 
     def update_template_options(*args):
         nonlocal templates_map
