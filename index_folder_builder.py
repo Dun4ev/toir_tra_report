@@ -198,6 +198,7 @@ def prepare_index_folders(
     tz_file_path: Path,
     status_callback: StatusCallback | None = None,
     use_copy: bool = True,
+    group_by_suffix: bool = False,
 ) -> list[Path]:
     """Группирует файлы по индексам и перемещает их в целевые каталоги."""
     source_dir = source_dir.resolve()
@@ -214,11 +215,17 @@ def prepare_index_folders(
         raise ValueError("Не удалось найти файлы с индексами в выбранном каталоге.")
 
     resolver = TzSuffixResolver(tz_file_path)
-    created_dirs: list[Path] = []
+    
+    planned_folders = []
+    items_without_suffix = []
 
     for grouping_key, file_paths in sorted(files_by_key.items()):
+        folder_name: str
+        suffix: str | None
+
         if grouping_key.upper().endswith('-C'):
             folder_name = transliterate_cyrillic_to_latin(grouping_key)
+            suffix = None  # У C-групп нет суффикса
         else:
             index_match = RE_INDEX_CODE.search(grouping_key)
             if not index_match:
@@ -228,22 +235,42 @@ def prepare_index_folders(
             index_code = index_match.group(1)
             reserved_code = extract_reserved_value(grouping_key)
             suffix = resolver.find_suffix(index_code, reserved_code)
+            
             if not suffix:
-                _notify(
-                    status_callback,
-                    f"Нет суффикса для {index_code} (Reserved={reserved_code or '—'}).",
-                )
-                continue
-
+                items_without_suffix.append(f"{index_code} (Reserved={reserved_code or '—'})")
+                if not group_by_suffix:
+                    _notify(status_callback, f"Нет суффикса для {index_code} (Reserved={reserved_code or '—'}).")
+                    continue
+            
             latin_key = transliterate_cyrillic_to_latin(grouping_key)
-            folder_name = f"{latin_key}_{suffix}"
+            folder_name = f"{latin_key}_{suffix}" if suffix else latin_key
 
-        target_dir = destination_dir / folder_name
+        planned_folders.append({
+            "folder_name": folder_name,
+            "suffix": suffix,
+            "grouping_key": grouping_key,
+            "file_paths": file_paths,
+        })
+
+    if group_by_suffix and items_without_suffix:
+        error_msg = "Невозможно сгруппировать по суффиксу. Не найдены суффиксы для следующих групп:\n\n" + "\n".join(items_without_suffix)
+        raise ValueError(error_msg)
+
+    created_dirs: list[Path] = []
+    for plan in planned_folders:
+        base_dir = destination_dir
+        # Если группировка включена и суффикс есть, создаем подпапку
+        if group_by_suffix and plan["suffix"]:
+            base_dir = destination_dir / plan["suffix"]
+        
+        target_dir = base_dir / plan["folder_name"]
         target_dir.mkdir(parents=True, exist_ok=True)
-        created_dirs.append(target_dir)
-        _notify(status_callback, f"Группа {grouping_key} → {target_dir.name}")
+        if target_dir not in created_dirs:
+            created_dirs.append(target_dir)
 
-        for file_path in file_paths:
+        _notify(status_callback, f"Группа {plan['grouping_key']} → {target_dir.relative_to(destination_dir)}")
+
+        for file_path in plan["file_paths"]:
             transferred_path = _transfer_file(file_path, target_dir, is_copy=use_copy)
             _notify(status_callback, f"  • {file_path.name} → {transferred_path.name}")
 

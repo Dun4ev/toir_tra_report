@@ -556,6 +556,7 @@ def create_transmittal_gui():
     index_destination_display = tk.StringVar(value="(не выбрана)")
     index_status_message = tk.StringVar(value="Выберите исходную и целевую папки.")
     should_copy_files = tk.BooleanVar(value=True)
+    should_group_by_suffix = tk.BooleanVar(value=True)
 
     # --- Функции-обработчики GUI ---
     def select_custom_template_path():
@@ -879,13 +880,15 @@ def create_transmittal_gui():
                 TZ_FILE_PATH,
                 status_callback=update_index_status,
                 use_copy=should_copy_files.get(),
+                group_by_suffix=should_group_by_suffix.get(),
             )
         except FileNotFoundError as exc:
             messagebox.showerror("Ошибка", str(exc))
             update_index_status(str(exc))
         except ValueError as exc:
-            messagebox.showwarning("Предупреждение", str(exc))
-            update_index_status(str(exc))
+            # Для ошибок валидации (например, отсутствие суффиксов) показываем более детальное сообщение
+            messagebox.showerror("Ошибка группировки", str(exc))
+            update_index_status(f"Ошибка: {exc}")
         except Exception as exc:
             messagebox.showerror("Ошибка", f"Неожиданная ошибка: {exc}")
             update_index_status("Возникла ошибка при группировке.")
@@ -974,7 +977,15 @@ def create_transmittal_gui():
         variable=should_copy_files,
         style="TCheckbutton",
     )
-    copy_check.pack(anchor="w", pady=(0, 10))
+    copy_check.pack(anchor="w")
+
+    group_check = ttk.Checkbutton(
+        action_card,
+        text="Группировать по суффиксам компаний (напр., \'ENK\', \'OST\')",
+        variable=should_group_by_suffix,
+        style="TCheckbutton",
+    )
+    group_check.pack(anchor="w", pady=(0, 10))
 
     apply_index_button = ttk.Button(
         action_card,
