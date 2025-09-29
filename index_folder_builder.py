@@ -14,15 +14,15 @@ StatusCallback = Callable[[str], None]
 
 # --- Регулярные выражения для поиска индексов ---
 RE_C_GROUPING_KEY = re.compile(
-    r"(\b(?:(?:[IVXLCDM]+)\.(?:\d+)(?:\.\d+)?(?:\.\d+)?(?:[A-Za-z\-_/])?)(?:-\d{2}-C))\b",
+    r"(\b(?:(?:[IVXLCDM]+)\.(?:\d+)(?:\.\d+)?(?:\.\d+)?(?:[A-Za-zа-яА-ЯёЁ\-_/])?)(?:-\d{2}-C))\b",
     re.IGNORECASE,
 )
 RE_GROUPING_KEY = re.compile(
-    r"(\b(?:(?:[IVXLCDM]+)\.(?:\d+)(?:\.\d+)?(?:\.\d+)?(?:[A-Za-z\-_/])?)(?:-\d{2}-\w{1,2}))\b",
+    r"(\b(?:(?:[IVXLCDM]+)\.(?:\d+)(?:\.\d+)?(?:\.\d+)?(?:[A-Za-zа-яА-ЯёЁ\-_/])?)(?:-\d{2}-\w{1,2}))\b",
     re.IGNORECASE,
 )
 RE_INDEX_CODE = re.compile(
-    r"(\b(?:[IVXLCDM]+)\.(?:\d+)(?:\.\d+)?(?:\.\d+)?(?:[A-Za-z\-_/])?)\b",
+    r"(\b(?:[IVXLCDM]+)\.(?:\d+)(?:\.\d+)?(?:\.\d+)?(?:[A-Za-zа-яА-ЯёЁ_/])?)\b",
     re.IGNORECASE,
 )
 
