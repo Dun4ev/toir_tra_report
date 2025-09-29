@@ -11,6 +11,8 @@ import shutil
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
+from index_folder_builder import prepare_index_folders
+
 # Настройка UTF-8 вывода
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -496,7 +498,7 @@ def create_transmittal_gui():
     """Создает и управляет GUI для выбора папки и шаблона."""
     root = tk.Tk()
     root.title("Формирование трансмиттала")
-    root.geometry("550x640")
+    root.geometry("550x650")
     root.resizable(False, False)
 
     # --- Стилизация ---
@@ -531,6 +533,15 @@ def create_transmittal_gui():
     style.map("TRadiobutton", background=[('active', BG_COLOR)])
 
 
+    notebook = ttk.Notebook(root)
+    notebook.pack(fill=tk.BOTH, expand=True)
+
+    report_tab = ttk.Frame(notebook, padding=0)
+    index_tab = ttk.Frame(notebook, padding=0)
+    notebook.add(report_tab, text="Формирование отчёта")
+    notebook.add(index_tab, text="Формирование папок")
+
+
     # --- Переменные ---
     selected_folder = tk.StringVar()
     selected_status_key = tk.StringVar(value=list(TEMPLATE_STATUSES.keys())[0])
@@ -539,6 +550,11 @@ def create_transmittal_gui():
     should_delete_files = tk.BooleanVar(value=False)
     
     templates_map = {}
+    index_source_path = tk.StringVar()
+    index_destination_path = tk.StringVar()
+    index_source_display = tk.StringVar(value="(не выбрана)")
+    index_destination_display = tk.StringVar(value="(не выбрана)")
+    index_status_message = tk.StringVar(value="Выберите исходную и целевую папки.")
 
     # --- Функции-обработчики GUI ---
     def select_custom_template_path():
@@ -711,7 +727,7 @@ def create_transmittal_gui():
         run_button.config(state=tk.NORMAL)
 
     # --- Компоновка ---
-    main_frame = ttk.Frame(root, padding=(15, 10))
+    main_frame = ttk.Frame(report_tab, padding=(15, 10))
     main_frame.pack(fill=tk.BOTH, expand=True)
 
     # Блок 1: Выбор папки
@@ -801,6 +817,136 @@ def create_transmittal_gui():
     link_label = tk.Label(bottom_frame, text="🔗 GitHub", fg="blue", cursor="hand2", bg=STATUS_BAR_COLOR, font=("Segoe UI", 8, "underline"))
     link_label.pack(side=tk.RIGHT, padx=10)
     link_label.bind("<Button-1>", open_github)
+
+    def _shorten_path_for_display(path: str) -> str:
+        if len(path) <= 50:
+            return path
+        return f'...{path[-50:]}'
+
+    def update_index_status(message: str) -> None:
+        index_status_message.set(message)
+        status_label.config(text=message)
+        root.update_idletasks()
+
+    def select_index_source_folder() -> None:
+        folder_path = filedialog.askdirectory(title="Выбор исходной папки")
+        if folder_path:
+            index_source_path.set(folder_path)
+            index_source_display.set(_shorten_path_for_display(folder_path))
+            update_index_status("Исходная папка выбрана.")
+
+    def select_index_destination_folder() -> None:
+        folder_path = filedialog.askdirectory(title="Выбор целевой папки")
+        if folder_path:
+            index_destination_path.set(folder_path)
+            index_destination_display.set(_shorten_path_for_display(folder_path))
+            update_index_status("Целевая папка выбрана.")
+
+    def run_index_packaging() -> None:
+        source_dir = index_source_path.get()
+        destination_dir = index_destination_path.get()
+
+        if not source_dir:
+            messagebox.showerror("Ошибка", "Не выбрана исходная папка.")
+            return
+        if not destination_dir:
+            messagebox.showerror("Ошибка", "Не выбрана целевая папка.")
+            return
+        if not TZ_FILE_PATH.exists():
+            messagebox.showerror("Ошибка", f"Файл {TZ_FILE_PATH.name} не найден.")
+            return
+
+        apply_index_button.config(state=tk.DISABLED)
+        try:
+            update_index_status("Запуск группировки...")
+            created_dirs = prepare_index_folders(
+                Path(source_dir),
+                Path(destination_dir),
+                TZ_FILE_PATH,
+                status_callback=update_index_status,
+            )
+        except FileNotFoundError as exc:
+            messagebox.showerror("Ошибка", str(exc))
+            update_index_status(str(exc))
+        except ValueError as exc:
+            messagebox.showwarning("Предупреждение", str(exc))
+            update_index_status(str(exc))
+        except Exception as exc:
+            messagebox.showerror("Ошибка", f"Неожиданная ошибка: {exc}")
+            update_index_status("Возникла ошибка при группировке.")
+        else:
+            summary = f"Готово: создано {len(created_dirs)} папок."
+            update_index_status(summary)
+            messagebox.showinfo("Готово", summary)
+        finally:
+            apply_index_button.config(state=tk.NORMAL)
+
+    index_tab_container = ttk.Frame(index_tab, padding=(15, 10))
+    index_tab_container.pack(fill=tk.BOTH, expand=True)
+
+    ttk.Label(
+        index_tab_container,
+        text="Выберите исходную и целевую папки, затем запустите группировку.",
+        font=FONT_HELP_TEXT,
+        foreground="#757575",
+        background=BG_COLOR,
+        wraplength=480,
+        justify=tk.LEFT,
+    ).pack(fill=tk.X, pady=(0, 10))
+
+    source_card = ttk.Frame(index_tab_container, style="Card.TFrame", padding=15)
+    source_card.pack(fill=tk.X, pady=5)
+    ttk.Label(source_card, text="1. Исходная папка", style="Header.TLabel").pack(anchor="w")
+    ttk.Label(
+        source_card,
+        textvariable=index_source_display,
+        font=FONT_LABEL,
+        foreground="#757575",
+        background=FRAME_COLOR,
+    ).pack(anchor="w", pady=(5, 10))
+    ttk.Button(
+        source_card,
+        text="Выбрать исходную...",
+        command=select_index_source_folder,
+        style="TButton",
+    ).pack(anchor="w")
+
+    destination_card = ttk.Frame(index_tab_container, style="Card.TFrame", padding=15)
+    destination_card.pack(fill=tk.X, pady=5)
+    ttk.Label(destination_card, text="2. Целевая папка", style="Header.TLabel").pack(anchor="w")
+    ttk.Label(
+        destination_card,
+        textvariable=index_destination_display,
+        font=FONT_LABEL,
+        foreground="#757575",
+        background=FRAME_COLOR,
+    ).pack(anchor="w", pady=(5, 10))
+    ttk.Button(
+        destination_card,
+        text="Выбрать целевую...",
+        command=select_index_destination_folder,
+        style="TButton",
+    ).pack(anchor="w")
+
+    action_card = ttk.Frame(index_tab_container, style="Card.TFrame", padding=15)
+    action_card.pack(fill=tk.X, pady=5)
+    apply_index_button = ttk.Button(
+        action_card,
+        text="Применить",
+        command=run_index_packaging,
+        style="TButton",
+    )
+    apply_index_button.pack(fill=tk.X, ipady=10)
+    ttk.Label(
+        action_card,
+        textvariable=index_status_message,
+        font=FONT_HELP_TEXT,
+        foreground="#757575",
+        background=FRAME_COLOR,
+        justify=tk.LEFT,
+        wraplength=480,
+    ).pack(anchor="w", pady=(10, 0))
+
 
     # --- Инициализация и привязки ---
     selected_status_key.trace_add("write", update_template_options)
