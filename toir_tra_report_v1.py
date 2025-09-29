@@ -555,6 +555,7 @@ def create_transmittal_gui():
     index_source_display = tk.StringVar(value="(не выбрана)")
     index_destination_display = tk.StringVar(value="(не выбрана)")
     index_status_message = tk.StringVar(value="Выберите исходную и целевую папки.")
+    should_copy_files = tk.BooleanVar(value=True)
 
     # --- Функции-обработчики GUI ---
     def select_custom_template_path():
@@ -864,6 +865,7 @@ def create_transmittal_gui():
                 Path(destination_dir),
                 TZ_FILE_PATH,
                 status_callback=update_index_status,
+                use_copy=should_copy_files.get(),
             )
         except FileNotFoundError as exc:
             messagebox.showerror("Ошибка", str(exc))
@@ -930,6 +932,15 @@ def create_transmittal_gui():
 
     action_card = ttk.Frame(index_tab_container, style="Card.TFrame", padding=15)
     action_card.pack(fill=tk.X, pady=5)
+
+    copy_check = ttk.Checkbutton(
+        action_card,
+        text="Копировать файлы (не перемещать)",
+        variable=should_copy_files,
+        style="TCheckbutton",
+    )
+    copy_check.pack(anchor="w", pady=(0, 10))
+
     apply_index_button = ttk.Button(
         action_card,
         text="Применить",

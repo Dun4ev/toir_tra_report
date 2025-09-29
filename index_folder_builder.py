@@ -169,11 +169,12 @@ def _group_files(source_dir: Path) -> dict[str, list[Path]]:
     return grouped
 
 
-def _move_to_destination(src: Path, dest_dir: Path) -> Path:
+def _transfer_file(src: Path, dest_dir: Path, is_copy: bool) -> Path:
+    operation = shutil.copy if is_copy else shutil.move
     dest = dest_dir / src.name
     if not dest.exists():
-        moved = shutil.move(str(src), str(dest))
-        return Path(moved)
+        transferred = operation(str(src), str(dest))
+        return Path(transferred)
 
     stem = dest.stem
     suffix = dest.suffix
@@ -181,8 +182,8 @@ def _move_to_destination(src: Path, dest_dir: Path) -> Path:
     while True:
         candidate = dest_dir / f"{stem}_{counter}{suffix}"
         if not candidate.exists():
-            moved = shutil.move(str(src), str(candidate))
-            return Path(moved)
+            transferred = operation(str(src), str(candidate))
+            return Path(transferred)
         counter += 1
 
 
@@ -196,6 +197,7 @@ def prepare_index_folders(
     destination_dir: Path,
     tz_file_path: Path,
     status_callback: StatusCallback | None = None,
+    use_copy: bool = True,
 ) -> list[Path]:
     """Группирует файлы по индексам и перемещает их в целевые каталоги."""
     source_dir = source_dir.resolve()
@@ -242,8 +244,8 @@ def prepare_index_folders(
         _notify(status_callback, f"Группа {grouping_key} → {target_dir.name}")
 
         for file_path in file_paths:
-            moved_path = _move_to_destination(file_path, target_dir)
-            _notify(status_callback, f"  • {file_path.name} → {moved_path.name}")
+            transferred_path = _transfer_file(file_path, target_dir, is_copy=use_copy)
+            _notify(status_callback, f"  • {file_path.name} → {transferred_path.name}")
 
     _notify(status_callback, "Группировка завершена.")
     return created_dirs
