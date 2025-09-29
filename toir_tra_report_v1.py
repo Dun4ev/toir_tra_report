@@ -40,6 +40,7 @@ DEFAULT_COMPANY_NAMES = {
     "GST": "Gastrans",
     "CDT": "Comita DTech",
     "CNE": "Contex",
+    "CT": "Comita Technics",
     "GGC": "Giprogazcentr",
     "DGT": "Drager",
     "DTA": "DTA Process&Safety",
@@ -497,7 +498,7 @@ def save_with_increment(wb, out_dir: Path, prefix="CT-GST-TRA-PRM-"):
 def create_transmittal_gui():
     """Создает и управляет GUI для выбора папки и шаблона."""
     root = tk.Tk()
-    root.title("Формирование трансмиттала")
+    root.title("Формирование трансмиттала v2.0")
     root.geometry("550x650")
     root.resizable(False, False)
 

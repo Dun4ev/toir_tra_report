@@ -1,6 +1,6 @@
-# Отчёт по передаче документов: `toir_tra_report_v1`
+# Отчёт по передаче документов: `toir_tra_report_v2.0`
 
-**Версия: v1**
+**Версия: v2.0**
 
 > [!IMPORTANT]
 > **Рекомендация по запуску**
@@ -92,8 +92,7 @@
 Выполните эту команду в корневой папке проекта:
 
 ```bash
-pyinstaller --onefile --windowed --name toir_tra_report_v1 --add-data "toir_tra_report/Template;Template" toir_tra_report/toir_tra_report_v1.py
-pyinstaller --onefile --windowed --name toir_tra_report_v1 --icon=assets/icon_toir_tra_report.ico --add-data "toir_tra_report/Template;Template" toir_tra_report/toir_tra_report_v1.py
+pyinstaller --onefile --windowed --name toir_tra_report_v2.0 --icon=assets/icon_toir_tra_report.ico --add-data "Template;Template" toir_tra_report_v1.py
 ```
 
 ### Поведение `.exe`
