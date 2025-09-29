@@ -843,6 +843,19 @@ def create_transmittal_gui():
             index_destination_display.set(_shorten_path_for_display(folder_path))
             update_index_status("Целевая папка выбрана.")
 
+    def open_index_destination_folder(event=None):
+        folder_path = index_destination_path.get()
+        if folder_path and Path(folder_path).is_dir():
+            try:
+                if sys.platform == "win32":
+                    os.startfile(folder_path)
+                elif sys.platform == "darwin":
+                    subprocess.run(['open', folder_path])
+                else:
+                    subprocess.run(['xdg-open', folder_path])
+            except Exception as e:
+                messagebox.showwarning("Ошибка", f"Не удалось открыть папку: {e}")
+
     def run_index_packaging() -> None:
         source_dir = index_source_path.get()
         destination_dir = index_destination_path.get()
@@ -880,6 +893,23 @@ def create_transmittal_gui():
             summary = f"Готово: создано {len(created_dirs)} папок."
             update_index_status(summary)
             messagebox.showinfo("Готово", summary)
+
+            # Обновляем ссылку в статус-баре
+            dest_path = Path(destination_dir)
+            folder_link_label.config(text=f"🔗 {dest_path.name}")
+            folder_link_label.unbind("<Button-1>")
+            folder_link_label.bind("<Button-1>", lambda e: open_index_destination_folder(e))
+
+            # Автоматически открываем папку
+            try:
+                if sys.platform == "win32":
+                    os.startfile(destination_dir)
+                elif sys.platform == "darwin":
+                    subprocess.run(['open', destination_dir])
+                else:
+                    subprocess.run(['xdg-open', destination_dir])
+            except Exception as e:
+                messagebox.showwarning("Ошибка", f"Не удалось автоматически открыть папку: {e}")
         finally:
             apply_index_button.config(state=tk.NORMAL)
 
@@ -916,13 +946,18 @@ def create_transmittal_gui():
     destination_card = ttk.Frame(index_tab_container, style="Card.TFrame", padding=15)
     destination_card.pack(fill=tk.X, pady=5)
     ttk.Label(destination_card, text="2. Целевая папка", style="Header.TLabel").pack(anchor="w")
-    ttk.Label(
+    
+    dest_link_label = tk.Label(
         destination_card,
         textvariable=index_destination_display,
-        font=FONT_LABEL,
-        foreground="#757575",
-        background=FRAME_COLOR,
-    ).pack(anchor="w", pady=(5, 10))
+        font=("Segoe UI", 9, "underline"),
+        fg="#00529B",
+        cursor="hand2",
+        bg=FRAME_COLOR,
+    )
+    dest_link_label.pack(anchor="w", pady=(5, 10))
+    dest_link_label.bind("<Button-1>", open_index_destination_folder)
+
     ttk.Button(
         destination_card,
         text="Выбрать целевую...",
