@@ -40,7 +40,6 @@ DEFAULT_COMPANY_NAMES = {
     "GST": "Gastrans",
     "CDT": "Comita DTech",
     "CNE": "Contex",
-    "CT": "Comita Technics",
     "GGC": "Giprogazcentr",
     "DGT": "Drager",
     "DTA": "DTA Process&Safety",
@@ -324,7 +323,7 @@ def get_footer_row_by_name(wb, ws_name: str, name: str) -> int | None:
     except Exception:
         destinations = []
     for sname, ref in destinations:
-        s_clean = sname.strip("'") if isinstance(sname, str) else sname
+        s_clean = sname.strip("'" ) if isinstance(sname, str) else sname
         if s_clean == ws_name:
             coord = str(ref).split("!")[-1].replace("$", "")
             m = re.search(r"\d+", coord)
@@ -824,7 +823,7 @@ def create_transmittal_gui():
     def _shorten_path_for_display(path: str) -> str:
         if len(path) <= 50:
             return path
-        return f'...{path[-50:]}'
+        return f"...{path[-50:]}"
 
     def update_index_status(message: str) -> None:
         index_status_message.set(message)
@@ -982,7 +981,7 @@ def create_transmittal_gui():
 
     group_check = ttk.Checkbutton(
         action_card,
-        text="Группировать по суффиксам компаний (напр., \'ENK\', \'OST\')",
+        text="Группировать по суффиксам (напр., 'ENK', 'OST')",
         variable=should_group_by_suffix,
         style="TCheckbutton",
     )
