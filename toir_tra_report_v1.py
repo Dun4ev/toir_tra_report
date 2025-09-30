@@ -498,12 +498,13 @@ def create_transmittal_gui():
     """Создает и управляет GUI для выбора папки и шаблона."""
     root = tk.Tk()
     root.title("Формирование трансмиттала v2.0")
-    root.geometry("550x700")
+    root.geometry("550x710")
     root.resizable(False, False)
 
     # --- Стилизация ---
     BG_COLOR = "#F4F6F5"
     FRAME_COLOR = "#FFFFFF"
+    ACTIVE_CARD_COLOR = "#E3F2FD"
     BUTTON_COLOR = "#4CAF50"
     BUTTON_ACTIVE_COLOR = "#45a049"
     TEXT_COLOR = "#333333"
@@ -527,6 +528,7 @@ def create_transmittal_gui():
     style.configure("Header.TLabel", font=FONT_BOLD, background=FRAME_COLOR)
     style.configure("Status.TLabel", background=STATUS_BAR_COLOR, foreground=TEXT_COLOR, padding=5, font=("Segoe UI", 9))
     style.configure("Card.TFrame", background=FRAME_COLOR)
+    style.configure("ActiveCard.TFrame", background=ACTIVE_CARD_COLOR)
     style.configure("TCheckbutton", background=FRAME_COLOR, font=FONT_NORMAL, foreground=TEXT_COLOR)
     style.map("TCheckbutton", foreground=[('disabled', DISABLED_TEXT_COLOR)])
     style.configure("TRadiobutton", background=FRAME_COLOR, font=FONT_NORMAL, foreground=TEXT_COLOR)
@@ -1000,7 +1002,16 @@ def create_transmittal_gui():
     # --- Левая колонка ---
     col1_frame = ttk.Frame(info_card, style="Card.TFrame")
     col1_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
-    ttk.Label(col1_frame, text="Группировка ВКЛЮЧЕНА:", font=("Segoe UI", 9, "bold"), background=FRAME_COLOR).pack(anchor="w", pady=(0, 5))
+    col1_header_label = tk.Label(
+        col1_frame,
+        text="Группировка ВКЛЮЧЕНА:",
+        font=("Segoe UI", 9, "bold"),
+        bg=FRAME_COLOR,
+        fg=TEXT_COLOR,
+        anchor="w",
+        justify=tk.LEFT,
+    )
+    col1_header_label.pack(anchor="w", pady=(0, 5))
     group_on_text = (
         "ENK/\n"
         "├─ I.12.4a-00-2M_ENK/\n"
@@ -1008,18 +1019,31 @@ def create_transmittal_gui():
         "├─ I.12.6b-00-5G_ENK/\n"
         "└─ II.2.4-00-6M_ENK/"
     )
-    ttk.Label(
-        col1_frame, 
-        text=group_on_text.replace("\\n", "\n"), 
-        font=("Segoe UI", 8), 
-        background=FRAME_COLOR, 
-        justify=tk.LEFT
-    ).pack(anchor="w")
+    line_break = "\n"
+    col1_body_label = tk.Label(
+        col1_frame,
+        text=group_on_text.replace("\n", line_break),
+        font=("Segoe UI", 8),
+        bg=FRAME_COLOR,
+        fg=TEXT_COLOR,
+        anchor="w",
+        justify=tk.LEFT,
+    )
+    col1_body_label.pack(anchor="w")
 
     # --- Правая колонка ---
     col2_frame = ttk.Frame(info_card, style="Card.TFrame")
     col2_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 0))
-    ttk.Label(col2_frame, text="Группировка ВЫКЛЮЧЕНА:", font=("Segoe UI", 9, "bold"), background=FRAME_COLOR).pack(anchor="w", pady=(0, 5))
+    col2_header_label = tk.Label(
+        col2_frame,
+        text="Группировка ВЫКЛЮЧЕНА:",
+        font=("Segoe UI", 9, "bold"),
+        bg=FRAME_COLOR,
+        fg=TEXT_COLOR,
+        anchor="w",
+        justify=tk.LEFT,
+    )
+    col2_header_label.pack(anchor="w", pady=(0, 5))
     group_off_text = (
         "//\n"
         "├─ I.7.1-02-1M_KBV/\n"
@@ -1027,14 +1051,31 @@ def create_transmittal_gui():
         "├─ II.23.2-00-6M_OST/\n"
         "└─ II.23.3-01-6M_OST/"
     )
-    ttk.Label(
-        col2_frame, 
-        text=group_off_text.replace("\\n", "\n"), 
-        font=("Segoe UI", 8), 
-        background=FRAME_COLOR, 
-        justify=tk.LEFT
-    ).pack(anchor="w")
+    col2_body_label = tk.Label(
+        col2_frame,
+        text=group_off_text.replace("\n", line_break),
+        font=("Segoe UI", 8),
+        bg=FRAME_COLOR,
+        fg=TEXT_COLOR,
+        anchor="w",
+        justify=tk.LEFT,
+    )
+    col2_body_label.pack(anchor="w")
 
+    def update_grouping_highlight(*_):
+        "Обновляет визуальное выделение выбранной колонки по установке флажка."
+        def apply_state(frame, header, body, is_active):
+            bg_color = ACTIVE_CARD_COLOR if is_active else FRAME_COLOR
+            frame.configure(style="ActiveCard.TFrame" if is_active else "Card.TFrame")
+            header.configure(bg=bg_color)
+            body.configure(bg=bg_color)
+
+        enabled = should_group_by_suffix.get()
+        apply_state(col1_frame, col1_header_label, col1_body_label, enabled)
+        apply_state(col2_frame, col2_header_label, col2_body_label, not enabled)
+
+    should_group_by_suffix.trace_add("write", update_grouping_highlight)
+    update_grouping_highlight()
 
     # --- Кнопка запуска группировки (расположена сразу под колонками) ---
     run_section_frame = ttk.Frame(index_tab_container, padding=(15, 8))
