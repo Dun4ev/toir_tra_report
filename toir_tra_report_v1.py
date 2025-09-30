@@ -497,7 +497,7 @@ def save_with_increment(wb, out_dir: Path, prefix="CT-GST-TRA-PRM-"):
 def create_transmittal_gui():
     """Создает и управляет GUI для выбора папки и шаблона."""
     root = tk.Tk()
-    root.title("Формирование трансмиттала v2.0")
+    root.title("Формирование трансмиттала v2.1")
     root.geometry("550x710")
     root.resizable(False, False)
 
@@ -540,7 +540,7 @@ def create_transmittal_gui():
 
     report_tab = ttk.Frame(notebook, padding=0)
     index_tab = ttk.Frame(notebook, padding=0)
-    notebook.add(report_tab, text="Формирование отчёта")
+    notebook.add(report_tab, text="Формирование трансмиттала")
     notebook.add(index_tab, text="Формирование папок")
 
 
@@ -774,7 +774,7 @@ def create_transmittal_gui():
     delete_check = ttk.Checkbutton(run_card, text="Удалить исходные файлы после архивации", variable=should_delete_files, style="TCheckbutton")
     delete_check.pack(anchor="w", padx=(20, 0), pady=(0, 15))
 
-    run_button = ttk.Button(run_card, text="Сформировать отчет", command=run_processing, style="TButton")
+    run_button = ttk.Button(run_card, text="Сформировать трансмиттал", command=run_processing, style="TButton")
     run_button.pack(ipady=10, fill=tk.X)
 
     # --- Верхнее меню ---
@@ -1085,7 +1085,7 @@ def create_transmittal_gui():
 
     apply_index_button = ttk.Button(
         run_card,
-        text="Применить",
+        text="Применить и группировать",
         command=run_index_packaging,
         style="TButton",
     )
