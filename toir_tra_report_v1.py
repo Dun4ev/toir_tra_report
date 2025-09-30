@@ -498,7 +498,7 @@ def create_transmittal_gui():
     """Создает и управляет GUI для выбора папки и шаблона."""
     root = tk.Tk()
     root.title("Формирование трансмиттала v2.0")
-    root.geometry("550x740")
+    root.geometry("550x700")
     root.resizable(False, False)
 
     # --- Стилизация ---
@@ -919,32 +919,11 @@ def create_transmittal_gui():
     index_tab_container = ttk.Frame(index_tab, padding=0)
     index_tab_container.pack(fill=tk.BOTH, expand=True)
 
-    # --- Нижняя часть с кнопкой и статусом ---
-    run_section_frame = ttk.Frame(index_tab_container, padding=(15, 10))
-    run_section_frame.pack(side=tk.BOTTOM, fill=tk.X)
-    run_card = ttk.Frame(run_section_frame, style="Card.TFrame", padding=15)
-    run_card.pack(fill=tk.X, pady=5)
-
-    apply_index_button = ttk.Button(
-        run_card,
-        text="Применить",
-        command=run_index_packaging,
-        style="TButton",
-    )
-    apply_index_button.pack(fill=tk.X, ipady=10)
-    ttk.Label(
-        run_card,
-        textvariable=index_status_message,
-        font=FONT_HELP_TEXT,
-        foreground="#757575",
-        background=FRAME_COLOR,
-        justify=tk.LEFT,
-        wraplength=480,
-    ).pack(anchor="w", pady=(10, 0))
+    # --- Нижняя часть с кнопкой и статусом --- (перемещена ниже блока информации)
 
     # --- Верхняя, основная часть ---
-    main_content_frame = ttk.Frame(index_tab_container, padding=(15, 10))
-    main_content_frame.pack(fill=tk.BOTH, expand=True)
+    main_content_frame = ttk.Frame(index_tab_container, padding=(15, 0))
+    main_content_frame.pack(fill=tk.BOTH, expand=False)
 
     ttk.Label(
         main_content_frame,
@@ -954,7 +933,7 @@ def create_transmittal_gui():
         background=BG_COLOR,
         wraplength=480,
         justify=tk.LEFT,
-    ).pack(fill=tk.X, pady=(0, 10))
+    ).pack(fill=tk.X, pady=(0, 5))
 
     source_card = ttk.Frame(main_content_frame, style="Card.TFrame", padding=15)
     source_card.pack(fill=tk.X, pady=5)
@@ -1012,11 +991,11 @@ def create_transmittal_gui():
         variable=should_group_by_suffix,
         style="TCheckbutton",
     )
-    group_check.pack(anchor="w", pady=(0, 15))
+    group_check.pack(anchor="w", pady=(0, 10))
 
     # --- Место для информации пользователя ---
     info_card = ttk.Frame(main_content_frame, padding=5)
-    info_card.pack(fill=tk.BOTH, expand=True, pady=5)
+    info_card.pack(fill=tk.BOTH, expand=False, pady=0)
 
     # --- Левая колонка ---
     col1_frame = ttk.Frame(info_card, style="Card.TFrame")
@@ -1057,6 +1036,30 @@ def create_transmittal_gui():
     ).pack(anchor="w")
 
 
+    # --- Кнопка запуска группировки (расположена сразу под колонками) ---
+    run_section_frame = ttk.Frame(index_tab_container, padding=(15, 8))
+    run_section_frame.pack(side=tk.TOP, fill=tk.X)
+    run_card = ttk.Frame(run_section_frame, style="Card.TFrame", padding=15)
+    run_card.pack(fill=tk.X, pady=5)
+
+    apply_index_button = ttk.Button(
+        run_card,
+        text="Применить",
+        command=run_index_packaging,
+        style="TButton",
+    )
+    apply_index_button.pack(fill=tk.X, ipady=10)
+    ttk.Label(
+        run_card,
+        textvariable=index_status_message,
+        font=FONT_HELP_TEXT,
+        foreground="#757575",
+        background=FRAME_COLOR,
+        justify=tk.LEFT,
+        wraplength=480,
+    ).pack(anchor="w", pady=(5, 0))
+
+
     # --- Инициализация и привязки ---
     selected_status_key.trace_add("write", update_template_options)
     toggle_delete_option()
@@ -1072,4 +1075,4 @@ def create_transmittal_gui():
     root.mainloop()
 
 if __name__ == "__main__":
-    create_transmittal_gui()
+    create_transmittal_gui()
