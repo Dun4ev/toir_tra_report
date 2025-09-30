@@ -498,7 +498,7 @@ def create_transmittal_gui():
     """Создает и управляет GUI для выбора папки и шаблона."""
     root = tk.Tk()
     root.title("Формирование трансмиттала v2.0")
-    root.geometry("550x650")
+    root.geometry("550x740")
     root.resizable(False, False)
 
     # --- Стилизация ---
@@ -916,11 +916,38 @@ def create_transmittal_gui():
         finally:
             apply_index_button.config(state=tk.NORMAL)
 
-    index_tab_container = ttk.Frame(index_tab, padding=(15, 10))
+    index_tab_container = ttk.Frame(index_tab, padding=0)
     index_tab_container.pack(fill=tk.BOTH, expand=True)
 
+    # --- Нижняя часть с кнопкой и статусом ---
+    run_section_frame = ttk.Frame(index_tab_container, padding=(15, 10))
+    run_section_frame.pack(side=tk.BOTTOM, fill=tk.X)
+    run_card = ttk.Frame(run_section_frame, style="Card.TFrame", padding=15)
+    run_card.pack(fill=tk.X, pady=5)
+
+    apply_index_button = ttk.Button(
+        run_card,
+        text="Применить",
+        command=run_index_packaging,
+        style="TButton",
+    )
+    apply_index_button.pack(fill=tk.X, ipady=10)
     ttk.Label(
-        index_tab_container,
+        run_card,
+        textvariable=index_status_message,
+        font=FONT_HELP_TEXT,
+        foreground="#757575",
+        background=FRAME_COLOR,
+        justify=tk.LEFT,
+        wraplength=480,
+    ).pack(anchor="w", pady=(10, 0))
+
+    # --- Верхняя, основная часть ---
+    main_content_frame = ttk.Frame(index_tab_container, padding=(15, 10))
+    main_content_frame.pack(fill=tk.BOTH, expand=True)
+
+    ttk.Label(
+        main_content_frame,
         text="Выберите исходную и целевую папки, затем запустите группировку.",
         font=FONT_HELP_TEXT,
         foreground="#757575",
@@ -929,7 +956,7 @@ def create_transmittal_gui():
         justify=tk.LEFT,
     ).pack(fill=tk.X, pady=(0, 10))
 
-    source_card = ttk.Frame(index_tab_container, style="Card.TFrame", padding=15)
+    source_card = ttk.Frame(main_content_frame, style="Card.TFrame", padding=15)
     source_card.pack(fill=tk.X, pady=5)
     ttk.Label(source_card, text="1. Исходная папка", style="Header.TLabel").pack(anchor="w")
     ttk.Label(
@@ -946,7 +973,7 @@ def create_transmittal_gui():
         style="TButton",
     ).pack(anchor="w")
 
-    destination_card = ttk.Frame(index_tab_container, style="Card.TFrame", padding=15)
+    destination_card = ttk.Frame(main_content_frame, style="Card.TFrame", padding=15)
     destination_card.pack(fill=tk.X, pady=5)
     ttk.Label(destination_card, text="2. Целевая папка", style="Header.TLabel").pack(anchor="w")
     
@@ -968,11 +995,11 @@ def create_transmittal_gui():
         style="TButton",
     ).pack(anchor="w")
 
-    action_card = ttk.Frame(index_tab_container, style="Card.TFrame", padding=15)
-    action_card.pack(fill=tk.X, pady=5)
+    options_card = ttk.Frame(main_content_frame, style="Card.TFrame", padding=15)
+    options_card.pack(fill=tk.X, pady=5)
 
     copy_check = ttk.Checkbutton(
-        action_card,
+        options_card,
         text="Копировать файлы (не перемещать)",
         variable=should_copy_files,
         style="TCheckbutton",
@@ -980,29 +1007,54 @@ def create_transmittal_gui():
     copy_check.pack(anchor="w")
 
     group_check = ttk.Checkbutton(
-        action_card,
-        text="Группировать по суффиксам (напр., 'ENK', 'OST')",
+        options_card,
+        text="Группировать по суффиксам компаний (напр., 'ENK', 'OST')",
         variable=should_group_by_suffix,
         style="TCheckbutton",
     )
-    group_check.pack(anchor="w", pady=(0, 10))
+    group_check.pack(anchor="w", pady=(0, 15))
 
-    apply_index_button = ttk.Button(
-        action_card,
-        text="Применить",
-        command=run_index_packaging,
-        style="TButton",
+    # --- Место для информации пользователя ---
+    info_card = ttk.Frame(main_content_frame, padding=5)
+    info_card.pack(fill=tk.BOTH, expand=True, pady=5)
+
+    # --- Левая колонка ---
+    col1_frame = ttk.Frame(info_card, style="Card.TFrame")
+    col1_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+    ttk.Label(col1_frame, text="Группировка ВКЛЮЧЕНА:", font=("Segoe UI", 9, "bold"), background=FRAME_COLOR).pack(anchor="w", pady=(0, 5))
+    group_on_text = (
+        "ENK/\n"
+        "├─ I.12.4a-00-2M_ENK/\n"
+        "├─ I.12.4v-00-5G_ENK/\n"
+        "├─ I.12.6b-00-5G_ENK/\n"
+        "└─ II.2.4-00-6M_ENK/"
     )
-    apply_index_button.pack(fill=tk.X, ipady=10)
     ttk.Label(
-        action_card,
-        textvariable=index_status_message,
-        font=FONT_HELP_TEXT,
-        foreground="#757575",
-        background=FRAME_COLOR,
-        justify=tk.LEFT,
-        wraplength=480,
-    ).pack(anchor="w", pady=(10, 0))
+        col1_frame, 
+        text=group_on_text.replace("\\n", "\n"), 
+        font=("Segoe UI", 8), 
+        background=FRAME_COLOR, 
+        justify=tk.LEFT
+    ).pack(anchor="w")
+
+    # --- Правая колонка ---
+    col2_frame = ttk.Frame(info_card, style="Card.TFrame")
+    col2_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 0))
+    ttk.Label(col2_frame, text="Группировка ВЫКЛЮЧЕНА:", font=("Segoe UI", 9, "bold"), background=FRAME_COLOR).pack(anchor="w", pady=(0, 5))
+    group_off_text = (
+        "//\n"
+        "├─ I.7.1-02-1M_KBV/\n"
+        "├─ II.2.2-00-6M_ENK_VLK/\n"
+        "├─ II.23.2-00-6M_OST/\n"
+        "└─ II.23.3-01-6M_OST/"
+    )
+    ttk.Label(
+        col2_frame, 
+        text=group_off_text.replace("\\n", "\n"), 
+        font=("Segoe UI", 8), 
+        background=FRAME_COLOR, 
+        justify=tk.LEFT
+    ).pack(anchor="w")
 
 
     # --- Инициализация и привязки ---
@@ -1020,4 +1072,4 @@ def create_transmittal_gui():
     root.mainloop()
 
 if __name__ == "__main__":
-    create_transmittal_gui()
+    create_transmittal_gui()
