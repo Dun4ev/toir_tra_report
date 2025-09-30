@@ -1,3 +1,0 @@
-'I.12.4а' | 'ENK' | None
-'I.12.4б' | 'ENK' | None
-'I.12.4в' | 'ENK' | None

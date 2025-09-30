@@ -1,6 +1,6 @@
 ﻿# Руководство по toir_tra_report
 
-**Версия приложения:** 2.0
+**Версия приложения:** 2.1
 
 `toir_tra_report` автоматизирует подготовку трансмиттальных писем и разбор архивов документации ТОиР. Приложение предоставляет настольный интерфейс на Tkinter, который ускоряет сбор исходных файлов, заполняет Excel-шаблоны и формирует структуру выдачи для подрядчиков.
 
@@ -72,7 +72,7 @@ prepare_index_folders(
 ## Упаковка в исполняемый файл
 
 ```bash
-pyinstaller --onefile --windowed --name toir_tra_report_v2.0 --icon=assets/icon_toir_tra_report.ico --add-data "Template;Template" toir_tra_report_v1.py
+pyinstaller --onefile --windowed --name toir_tra_report_v2.1 --icon=assets/icon_toir_tra_report.ico --add-data "Template;Template" toir_tra_report_v1.py
 ```
 
 Исполняемый файл ищет `settings.json` и каталог `Template` рядом с собой и разворачивает недостающие ресурсы при первом запуске.
