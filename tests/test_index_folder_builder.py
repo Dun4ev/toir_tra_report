@@ -28,7 +28,7 @@ def test_prepare_index_folders_groups_files_and_moves(tmp_path: Path) -> None:
     destination_dir.mkdir()
 
     tz_file = tmp_path / "TZ_glob.xlsx"
-    _build_tz_file(tz_file, [("II.7.4-00-1G", "GST", "00")])
+    _build_tz_file(tz_file, [("II.7.4", "GST", "00")])
 
     files = [
         "CT-AAA-TRA-II.7.4-00-1G-20250101-00.pdf",
@@ -44,6 +44,7 @@ def test_prepare_index_folders_groups_files_and_moves(tmp_path: Path) -> None:
         destination_dir,
         tz_file,
         status_callback=status_messages.append,
+        use_copy=False,
     )
 
     group_dir = destination_dir / "II.7.4-00-1G_GST"
@@ -69,7 +70,7 @@ def test_prepare_index_folders_raises_when_no_matching_files(tmp_path: Path) -> 
     destination_dir.mkdir()
 
     tz_file = tmp_path / "TZ_glob.xlsx"
-    _build_tz_file(tz_file, [("II.7.4-00-1G", "GST", "00")])
+    _build_tz_file(tz_file, [("II.7.4", "GST", "00")])
 
     (source_dir / "irrelevant.txt").write_text("noop", encoding="utf-8")
 

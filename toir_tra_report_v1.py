@@ -12,6 +12,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from index_folder_builder import prepare_index_folders
+from cmm_builder import generate_comment_sheets
 
 # Настройка UTF-8 вывода
 try:
@@ -164,6 +165,7 @@ ensure_template_structure(TEMPLATES_ROOT)
 
 TEMPLATE_DIR = TEMPLATES_ROOT / "Template" / "template_tra"
 TZ_FILE_PATH = TEMPLATES_ROOT / "Template" / "TZ_glob.xlsx"
+COMMENT_TEMPLATE_PATH = TEMPLATES_ROOT / "Template" / "CommentSheet_Template.xltx"
 
 # --- Настройки ячеек и колонок (можно вынести в конфиг) ---
 DATE_CELL_ADDR = "C3"
@@ -264,13 +266,13 @@ def process_files(target_dir: Path, template_path: Path, status_callback, create
                         messagebox.showerror("Ошибка удаления", f"Не удалось удалить исходные файлы: {e}")
                         status_callback("Ошибка удаления файлов.")
                 else:
-                    status_callback(f"Архив создан. Открываю папку...")
+                    status_callback("Архив создан. Открываю папку...")
 
             except Exception as e:
                 status_callback(f"Ошибка создания архива: {e}")
                 messagebox.showerror("Ошибка архивации", f"Не удалось создать ZIP-архив: {e}")
         else:
-             status_callback(f"Готово! Файл сохранен. Открываю папку...")
+             status_callback("Готово! Файл сохранен. Открываю папку...")
 
         try:
             if sys.platform == "win32":
@@ -540,8 +542,10 @@ def create_transmittal_gui():
 
     report_tab = ttk.Frame(notebook, padding=0)
     index_tab = ttk.Frame(notebook, padding=0)
+    cmm_tab = ttk.Frame(notebook, padding=0)
     notebook.add(report_tab, text="Формирование трансмиттала")
     notebook.add(index_tab, text="Формирование папок")
+    notebook.add(cmm_tab, text="Создание CMM")
 
 
     # --- Переменные ---
@@ -559,6 +563,10 @@ def create_transmittal_gui():
     index_status_message = tk.StringVar(value="Выберите исходную и целевую папки.")
     should_copy_files = tk.BooleanVar(value=True)
     should_group_by_suffix = tk.BooleanVar(value=True)
+    cmm_source_path = tk.StringVar()
+    cmm_source_display = tk.StringVar(value='(Не выбрано)')
+    cmm_status_message = tk.StringVar(value='Готово к запуску.')
+    cmm_run_button: ttk.Button | None = None
 
     # --- Функции-обработчики GUI ---
     def select_custom_template_path():
@@ -917,6 +925,123 @@ def create_transmittal_gui():
                 messagebox.showwarning("Ошибка", f"Не удалось автоматически открыть папку: {e}")
         finally:
             apply_index_button.config(state=tk.NORMAL)
+
+    def update_cmm_status(message: str) -> None:
+        cmm_status_message.set(message)
+        root.update_idletasks()
+
+    def select_cmm_source_folder() -> None:
+        folder_path = filedialog.askdirectory(title='Выберите каталог с отчётами (CT-DR-*)')
+        if folder_path:
+            cmm_source_path.set(folder_path)
+            cmm_source_display.set(_shorten_path_for_display(folder_path))
+            update_cmm_status('Каталог выбран.')
+        else:
+            update_cmm_status('Выбор отменён.')
+
+    def run_cmm_generation() -> None:
+        nonlocal cmm_run_button
+        folder_value = cmm_source_path.get()
+        if not folder_value:
+            messagebox.showwarning('Внимание', 'Выберите папку с файлами.')
+            return
+        if not COMMENT_TEMPLATE_PATH.exists():
+            messagebox.showerror('Ошибка', f'Шаблон не найден: {COMMENT_TEMPLATE_PATH}')
+            return
+        if not TZ_FILE_PATH.exists():
+            messagebox.showerror('Ошибка', f'Файл {TZ_FILE_PATH.name} не найден.')
+            return
+
+        update_cmm_status('Подготовка к созданию CMM...')
+        if cmm_run_button is not None:
+            cmm_run_button.config(state=tk.DISABLED)
+
+        try:
+            tz_map = build_tz_map_from_xlsx(TZ_FILE_PATH)
+            result = generate_comment_sheets(
+                Path(folder_value),
+                COMMENT_TEMPLATE_PATH,
+                tz_map,
+                normalize_key,
+                status_callback=update_cmm_status,
+            )
+        except FileNotFoundError as exc:
+            messagebox.showerror('Ошибка', str(exc))
+            update_cmm_status(str(exc))
+            return
+        except Exception as exc:
+            messagebox.showerror('Ошибка', f'Не удалось создать CMM: {exc}')
+            update_cmm_status('Ошибка при создании CMM.')
+            return
+        finally:
+            if cmm_run_button is not None:
+                cmm_run_button.config(state=tk.NORMAL)
+
+        summary_lines = [
+            f'Создано файлов: {len(result.created)}',
+            f'Пропущено (CMM уже существует): {len(result.skipped_existing)}',
+        ]
+        error_preview = ''
+        if result.failed:
+            summary_lines.append(f'Ошибки: {len(result.failed)}')
+            error_preview = '\n'.join(f'- {path.name}: {error}' for path, error in result.failed[:3])
+        message = '\n'.join(summary_lines)
+        if result.failed:
+            messagebox.showwarning('Создание CMM', f"{message}\n\n{error_preview}")
+        else:
+            messagebox.showinfo('Создание CMM', message)
+        update_cmm_status('Готово.')
+
+    cmm_tab_container = ttk.Frame(cmm_tab, padding=(15, 10))
+    cmm_tab_container.pack(fill=tk.BOTH, expand=True)
+
+    cmm_folder_card = ttk.Frame(cmm_tab_container, style="Card.TFrame", padding=15)
+    cmm_folder_card.pack(fill=tk.X, pady=5)
+    ttk.Label(cmm_folder_card, text="1. Выберите папку с документами CT-DR", style="Header.TLabel").pack(anchor="w")
+    ttk.Label(
+        cmm_folder_card,
+        textvariable=cmm_source_display,
+        font=FONT_LABEL,
+        foreground="#757575",
+        background=FRAME_COLOR,
+    ).pack(anchor="w", pady=(5, 10))
+    ttk.Button(
+        cmm_folder_card,
+        text="Выбрать папку...",
+        command=select_cmm_source_folder,
+        style="TButton",
+    ).pack(anchor="w")
+
+    cmm_info_card = ttk.Frame(cmm_tab_container, style="Card.TFrame", padding=15)
+    cmm_info_card.pack(fill=tk.X, pady=5)
+    ttk.Label(
+        cmm_info_card,
+        text="Шаблон: CommentSheet_Template.xltx",
+        font=FONT_HELP_TEXT,
+        foreground="#757575",
+        background=FRAME_COLOR,
+        justify=tk.LEFT,
+        wraplength=480,
+    ).pack(anchor="w")
+
+    cmm_run_card = ttk.Frame(cmm_tab_container, style="Card.TFrame", padding=15)
+    cmm_run_card.pack(fill=tk.X, pady=5)
+    cmm_run_button = ttk.Button(
+        cmm_run_card,
+        text="Создать_CMM",
+        command=run_cmm_generation,
+        style="TButton",
+    )
+    cmm_run_button.pack(fill=tk.X, ipady=10)
+    ttk.Label(
+        cmm_run_card,
+        textvariable=cmm_status_message,
+        font=FONT_HELP_TEXT,
+        foreground="#757575",
+        background=FRAME_COLOR,
+        justify=tk.LEFT,
+        wraplength=480,
+    ).pack(anchor="w", pady=(5, 0))
 
     index_tab_container = ttk.Frame(index_tab, padding=0)
     index_tab_container.pack(fill=tk.BOTH, expand=True)
