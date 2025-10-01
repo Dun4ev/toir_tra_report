@@ -1186,6 +1186,26 @@ def create_transmittal_gui():
         justify=tk.LEFT,
     )
     col2_body_label.pack(anchor="w")
+    
+    # --- Кликабельность колонок для переключения группировки ---
+    def _set_grouping_enabled(event=None):
+        should_group_by_suffix.set(True)
+
+    def _set_grouping_disabled(event=None):
+        should_group_by_suffix.set(False)
+
+    # Привязки клика по левой колонке (включить)
+    for widget in (col1_frame, col1_header_label, col1_body_label):
+        widget.bind("<Button-1>", _set_grouping_enabled)
+    # Привязки клика по правой колонке (выключить)
+    for widget in (col2_frame, col2_header_label, col2_body_label):
+        widget.bind("<Button-1>", _set_grouping_disabled)
+
+    # Визуальная подсказка курсором
+    col1_header_label.config(cursor="hand2")
+    col1_body_label.config(cursor="hand2")
+    col2_header_label.config(cursor="hand2")
+    col2_body_label.config(cursor="hand2")
 
     def update_grouping_highlight(*_):
         "Обновляет визуальное выделение выбранной колонки по установке флажка."
