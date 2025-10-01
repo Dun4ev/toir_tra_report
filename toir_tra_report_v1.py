@@ -499,7 +499,7 @@ def save_with_increment(wb, out_dir: Path, prefix="CT-GST-TRA-PRM-"):
 def create_transmittal_gui():
     """Создает и управляет GUI для выбора папки и шаблона."""
     root = tk.Tk()
-    root.title("Формирование трансмиттала v2.1")
+    root.title("Формирование трансмиттала v2.5")
     root.geometry("550x710")
     root.resizable(False, False)
 
@@ -1125,8 +1125,17 @@ def create_transmittal_gui():
     info_card.pack(fill=tk.BOTH, expand=False, pady=0)
 
     # --- Левая колонка ---
-    col1_frame = ttk.Frame(info_card, style="Card.TFrame")
-    col1_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+    col1_wrap = tk.Frame(
+        info_card,
+        bg=FRAME_COLOR,
+        highlightthickness=0,
+        highlightbackground=FRAME_COLOR,
+        highlightcolor=FRAME_COLOR,
+        bd=0,
+    )
+    col1_wrap.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+    col1_frame = ttk.Frame(col1_wrap, style="Card.TFrame")
+    col1_frame.pack(fill=tk.BOTH, expand=True)
     col1_header_label = tk.Label(
         col1_frame,
         text="Группировка ВКЛЮЧЕНА:",
@@ -1157,8 +1166,17 @@ def create_transmittal_gui():
     col1_body_label.pack(anchor="w")
 
     # --- Правая колонка ---
-    col2_frame = ttk.Frame(info_card, style="Card.TFrame")
-    col2_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 0))
+    col2_wrap = tk.Frame(
+        info_card,
+        bg=FRAME_COLOR,
+        highlightthickness=0,
+        highlightbackground=FRAME_COLOR,
+        highlightcolor=FRAME_COLOR,
+        bd=0,
+    )
+    col2_wrap.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 0))
+    col2_frame = ttk.Frame(col2_wrap, style="Card.TFrame")
+    col2_frame.pack(fill=tk.BOTH, expand=True)
     col2_header_label = tk.Label(
         col2_frame,
         text="Группировка ВЫКЛЮЧЕНА:",
@@ -1195,29 +1213,38 @@ def create_transmittal_gui():
         should_group_by_suffix.set(False)
 
     # Привязки клика по левой колонке (включить)
-    for widget in (col1_frame, col1_header_label, col1_body_label):
+    for widget in (col1_wrap, col1_frame, col1_header_label, col1_body_label):
         widget.bind("<Button-1>", _set_grouping_enabled)
     # Привязки клика по правой колонке (выключить)
-    for widget in (col2_frame, col2_header_label, col2_body_label):
+    for widget in (col2_wrap, col2_frame, col2_header_label, col2_body_label):
         widget.bind("<Button-1>", _set_grouping_disabled)
 
     # Визуальная подсказка курсором
+    col1_wrap.config(cursor="hand2")
     col1_header_label.config(cursor="hand2")
     col1_body_label.config(cursor="hand2")
+    col2_wrap.config(cursor="hand2")
     col2_header_label.config(cursor="hand2")
     col2_body_label.config(cursor="hand2")
 
     def update_grouping_highlight(*_):
         "Обновляет визуальное выделение выбранной колонки по установке флажка."
-        def apply_state(frame, header, body, is_active):
+        def apply_state(frame, header, body, wrap, is_active):
             bg_color = ACTIVE_CARD_COLOR if is_active else FRAME_COLOR
             frame.configure(style="ActiveCard.TFrame" if is_active else "Card.TFrame")
             header.configure(bg=bg_color)
             body.configure(bg=bg_color)
+            # Рамка вокруг активной области
+            wrap.configure(
+                highlightthickness=2 if is_active else 0,
+                highlightbackground="#42A5F5" if is_active else FRAME_COLOR,
+                highlightcolor="#42A5F5" if is_active else FRAME_COLOR,
+                bg=FRAME_COLOR,
+            )
 
         enabled = should_group_by_suffix.get()
-        apply_state(col1_frame, col1_header_label, col1_body_label, enabled)
-        apply_state(col2_frame, col2_header_label, col2_body_label, not enabled)
+        apply_state(col1_frame, col1_header_label, col1_body_label, col1_wrap, enabled)
+        apply_state(col2_frame, col2_header_label, col2_body_label, col2_wrap, not enabled)
 
     should_group_by_suffix.trace_add("write", update_grouping_highlight)
     update_grouping_highlight()

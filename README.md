@@ -1,6 +1,6 @@
 ﻿# Руководство по toir_tra_report
 
-**Версия приложения:** 2.1
+**Версия приложения:** 2.5
 
 `toir_tra_report` автоматизирует подготовку трансмиттальных писем и разбор архивов документации ТОиР. Приложение предоставляет настольный интерфейс на Tkinter, который ускоряет сбор исходных файлов, заполняет Excel-шаблоны и формирует структуру выдачи для подрядчиков.
 
@@ -12,13 +12,14 @@
 - Формирование индексных папок по кодам документов с использованием `index_folder_builder.prepare_index_folders`.
 - CMM comment sheets for CT-DR via template `Template/CommentSheet_Template.xltx`.
 - Поддержка копирования или переноса файлов и группировки выдачи по суффиксам (например, `ENK`, `OST`).
+ - На вкладке «Формирование папок»: кликабельные области «Группировка ВКЛЮЧЕНА/ВЫКЛЮЧЕНА» переключают режим; у активной области отображается синяя рамка.
 
 ## Требования и установка
 
 1. Установите Python 3.11+ и активируйте виртуальное окружение: `python -m venv .venv` → `.venv\Scripts\activate`.
 2. Установите зависимости: `pip install openpyxl pytest pyinstaller`.
 3. При необходимости зафиксируйте состав зависимостей через `pip-tools` (`pip-compile requirements.in`).
-4. Запустите приложение: `python toir_tra_report_v1.py`.
+4. Запустите приложение: `python toir_tra_report_v1.py` (заголовок окна: «Формирование трансмиттала v2.5»).
 
 ## Структура проекта
 
@@ -74,7 +75,7 @@ prepare_index_folders(
 ## Упаковка в исполняемый файл
 
 ```bash
-pyinstaller --onefile --windowed --name toir_tra_report_v2.1 --icon=assets/icon_toir_tra_report.ico --add-data "Template;Template" toir_tra_report_v1.py
+pyinstaller --onefile --windowed --name toir_tra_report_v2.5 --icon=assets/icon_toir_tra_report.ico --add-data "Template;Template" toir_tra_report_v1.py
 ```
 
 Исполняемый файл ищет `settings.json` и каталог `Template` рядом с собой и разворачивает недостающие ресурсы при первом запуске.
@@ -96,3 +97,7 @@ pyinstaller --onefile --windowed --name toir_tra_report_v2.1 --icon=assets/icon_
 | Формирование трансмиталла               | Выбор шаблона                                         |
 | --------------------------------------------------------------- | ----------------------------------------------------------------- |
 | ![Форма отчёта](assets/image_toir_tra_report_v1_1.png) | ![Выбор шаблона](assets/image_toir_tra_report_v1_2.png) |
+
+### Вкладка «Формирование папок»: переключение группировки
+
+На карточке с примерами появились две кликабельные области. Клик по «Группировка ВКЛЮЧЕНА» включает режим, по «Группировка ВЫКЛЮЧЕНА» — отключает. Активная область выделяется синей рамкой.
