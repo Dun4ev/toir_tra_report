@@ -499,7 +499,7 @@ def save_with_increment(wb, out_dir: Path, prefix="CT-GST-TRA-PRM-"):
 def create_transmittal_gui():
     """Создает и управляет GUI для выбора папки и шаблона."""
     root = tk.Tk()
-    root.title("Формирование трансмиттала v2.5")
+    root.title("Формирование трансмиттала v2.6")
     root.geometry("550x710")
     root.resizable(False, False)
 
