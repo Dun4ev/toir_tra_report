@@ -354,12 +354,12 @@ def prepare_index_folders(
             folder_name = f"{latin_key}_{suffix}" if suffix else latin_key
 
         planned_folders.append(
-            {
-                "folder_name": folder_name,
-                "suffix": suffix,
-                "grouping_key": grouping_key,
-                "file_paths": file_paths,
-            }
+            PlannedFolder(
+                folder_name=folder_name,
+                suffix=suffix,
+                grouping_key=grouping_key,
+                file_paths=file_paths,
+            )
         )
 
     if group_by_suffix and items_without_suffix:
