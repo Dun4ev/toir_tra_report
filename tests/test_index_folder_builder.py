@@ -5,14 +5,18 @@ from openpyxl import Workbook
 from index_folder_builder import prepare_index_folders
 
 
-def _build_tz_file(path: Path, rows: list[tuple[str, str, str | None]]) -> None:
+def _build_tz_file(
+    path: Path, rows: list[tuple[str, str | None, str, str | None]]
+) -> None:
     """Создаёт рабочую книгу TZ_glob.xlsx с указанными строками."""
     wb = Workbook()
     ws = wb.active
     ws.title = "gen_cl"
 
-    for idx, (lookup, suffix, reserved) in enumerate(rows, start=1):
+    for idx, (lookup, periodicity, suffix, reserved) in enumerate(rows, start=1):
         ws.cell(row=idx, column=2, value=lookup)
+        if periodicity is not None:
+            ws.cell(row=idx, column=5, value=periodicity)
         ws.cell(row=idx, column=7, value=suffix)
         if reserved is not None:
             ws.cell(row=idx, column=8, value=reserved)
@@ -28,7 +32,7 @@ def test_prepare_index_folders_groups_files_and_moves(tmp_path: Path) -> None:
     destination_dir.mkdir()
 
     tz_file = tmp_path / "TZ_glob.xlsx"
-    _build_tz_file(tz_file, [("II.7.4", "GST", "00")])
+    _build_tz_file(tz_file, [("II.7.4", "1Г", "GST", "00")])
 
     files = [
         "CT-AAA-TRA-II.7.4-00-1G-20250101-00.pdf",
@@ -70,7 +74,7 @@ def test_prepare_index_folders_raises_when_no_matching_files(tmp_path: Path) -> 
     destination_dir.mkdir()
 
     tz_file = tmp_path / "TZ_glob.xlsx"
-    _build_tz_file(tz_file, [("II.7.4", "GST", "00")])
+    _build_tz_file(tz_file, [("II.7.4", "1Г", "GST", "00")])
 
     (source_dir / "irrelevant.txt").write_text("noop", encoding="utf-8")
 

@@ -4,7 +4,7 @@ import re
 import shutil
 from collections import defaultdict
 from pathlib import Path
-from typing import Callable
+from typing import Callable, TypedDict
 
 from openpyxl import load_workbook
 from openpyxl.utils.cell import column_index_from_string
@@ -29,22 +29,74 @@ RE_INDEX_CODE = re.compile(
 # --- Настройки справочника ---
 TZ_SHEET_NAME = "gen_cl"
 TZ_LOOKUP_COL = "B"
+TZ_PERIODICITY_COL = "E"
 TZ_SUFFIX_COL = "G"
 TZ_RESERVED_COL = "H"
 
 # --- Таблицы транслитерации ---
 CYRILLIC_TO_LATIN = {
-    'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Д': 'D', 'Е': 'E', 'Ё': 'E', 'Ж': 'ZH',
-    'З': 'Z', 'И': 'I', 'Й': 'I', 'К': 'K', 'Л': 'L', 'М': 'M', 'Н': 'N', 'О': 'O',
-    'П': 'P', 'Р': 'R', 'С': 'S', 'Т': 'T', 'У': 'U', 'Ф': 'F', 'Х': 'KH', 'Ц': 'TS',
-    'Ч': 'CH', 'Ш': 'SH', 'Щ': 'SHCH', 'Ъ': '', 'Ы': 'Y', 'Ь': '', 'Э': 'E', 'Ю': 'YU',
-    'Я': 'YA',
+    "А": "A",
+    "Б": "B",
+    "В": "V",
+    "Г": "G",
+    "Д": "D",
+    "Е": "E",
+    "Ё": "E",
+    "Ж": "ZH",
+    "З": "Z",
+    "И": "I",
+    "Й": "I",
+    "К": "K",
+    "Л": "L",
+    "М": "M",
+    "Н": "N",
+    "О": "O",
+    "П": "P",
+    "Р": "R",
+    "С": "S",
+    "Т": "T",
+    "У": "U",
+    "Ф": "F",
+    "Х": "KH",
+    "Ц": "TS",
+    "Ч": "CH",
+    "Ш": "SH",
+    "Щ": "SHCH",
+    "Ъ": "",
+    "Ы": "Y",
+    "Ь": "",
+    "Э": "E",
+    "Ю": "YU",
+    "Я": "YA",
 }
-CYRILLIC_TO_LATIN.update({k.lower(): v.lower() for k, v in list(CYRILLIC_TO_LATIN.items())})
+CYRILLIC_TO_LATIN.update(
+    {k.lower(): v.lower() for k, v in list(CYRILLIC_TO_LATIN.items())}
+)
 LATIN_TO_CYRILLIC = {
-    'a': 'а', 'b': 'б', 'v': 'в', 'g': 'г',
-    'A': 'А', 'B': 'Б', 'V': 'В', 'G': 'Г',
+    "a": "а",
+    "b": "б",
+    "v": "в",
+    "g": "г",
+    "A": "А",
+    "B": "Б",
+    "V": "В",
+    "G": "Г",
 }
+
+
+PERIODICITY_LATIN_MAP = {
+    "М": "M",
+    "м": "m",
+    "Г": "G",
+    "г": "g",
+}
+
+
+class PlannedFolder(TypedDict):
+    folder_name: str
+    suffix: str | None
+    grouping_key: str
+    file_paths: list[Path]
 
 
 class TzSuffixResolver:
@@ -63,6 +115,7 @@ class TzSuffixResolver:
 
         sheet = workbook[TZ_SHEET_NAME]
         self._lookup_idx = column_index_from_string(TZ_LOOKUP_COL) - 1
+        self._periodicity_idx = column_index_from_string(TZ_PERIODICITY_COL) - 1
         self._suffix_idx = column_index_from_string(TZ_SUFFIX_COL) - 1
         self._reserved_idx = column_index_from_string(TZ_RESERVED_COL) - 1
         self._rows = tuple(sheet.iter_rows(values_only=True))
@@ -90,7 +143,22 @@ class TzSuffixResolver:
         text = str(value).strip()
         return text or None
 
-    def find_suffix(self, lookup_key: str, reserved_code: str | None = None) -> str | None:
+    @staticmethod
+    def _normalize_periodicity(value: object | None) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        if not text:
+            return None
+        transliterated = "".join(PERIODICITY_LATIN_MAP.get(ch, ch) for ch in text)
+        return transliterated.upper()
+
+    def find_suffix(
+        self,
+        lookup_key: str,
+        reserved_code: str | None = None,
+        periodicity_code: str | None = None,
+    ) -> str | None:
         """Возвращает подходящий суффикс по индексу и коду Reserved."""
         normalized_lookup = lookup_key.strip()
         if not normalized_lookup:
@@ -103,23 +171,44 @@ class TzSuffixResolver:
             lookup_variants.add(variant.lower())
 
         normalized_reserved = self._normalize_reserved(reserved_code)
+        normalized_periodicity = self._normalize_periodicity(periodicity_code)
         fallback: str | None = None
 
         for row in self._rows:
-            if len(row) <= max(self._lookup_idx, self._suffix_idx):
+            if len(row) <= max(
+                self._lookup_idx, self._suffix_idx, self._periodicity_idx
+            ):
                 continue
 
-            row_lookup_raw = row[self._lookup_idx] if len(row) > self._lookup_idx else None
+            row_lookup_raw = (
+                row[self._lookup_idx] if len(row) > self._lookup_idx else None
+            )
             row_lookup = self._normalize_lookup(row_lookup_raw)
             if row_lookup not in lookup_variants:
                 continue
 
-            row_suffix_raw = row[self._suffix_idx] if len(row) > self._suffix_idx else None
+            row_periodicity_raw = (
+                row[self._periodicity_idx] if len(row) > self._periodicity_idx else None
+            )
+            row_periodicity = self._normalize_periodicity(row_periodicity_raw)
+
+            if normalized_periodicity:
+                if row_periodicity != normalized_periodicity:
+                    continue
+            else:
+                if row_periodicity:
+                    continue
+
+            row_suffix_raw = (
+                row[self._suffix_idx] if len(row) > self._suffix_idx else None
+            )
             suffix = self._normalize_suffix(row_suffix_raw)
             if not suffix:
                 continue
 
-            row_reserved_raw = row[self._reserved_idx] if len(row) > self._reserved_idx else None
+            row_reserved_raw = (
+                row[self._reserved_idx] if len(row) > self._reserved_idx else None
+            )
             row_reserved = self._normalize_reserved(row_reserved_raw)
 
             if normalized_reserved:
@@ -135,12 +224,12 @@ class TzSuffixResolver:
 
 def transliterate_cyrillic_to_latin(text: str) -> str:
     """Преобразует строку, заменяя кириллицу на латиницу для имён директорий."""
-    return ''.join(CYRILLIC_TO_LATIN.get(ch, ch) for ch in text)
+    return "".join(CYRILLIC_TO_LATIN.get(ch, ch) for ch in text)
 
 
 def extract_reserved_value(grouping_key: str) -> str | None:
     """Извлекает значение Reserved из ключа группы вида `II.1.4-02-C`."""
-    parts = grouping_key.split('-')
+    parts = grouping_key.split("-")
     if len(parts) < 2:
         return None
 
@@ -151,9 +240,18 @@ def extract_reserved_value(grouping_key: str) -> str | None:
     return candidate.zfill(2) if candidate.isdigit() else candidate.upper()
 
 
+def extract_periodicity_value(grouping_key: str) -> str | None:
+    """Возвращает значение периодичности из ключа группы (`...-XX`)."""
+    parts = grouping_key.split("-")
+    if len(parts) < 3:
+        return None
+    value = parts[2].strip()
+    return value or None
+
+
 def _group_files(source_dir: Path) -> dict[str, list[Path]]:
     grouped: dict[str, list[Path]] = defaultdict(list)
-    for file_path in source_dir.rglob('*'):
+    for file_path in source_dir.rglob("*"):
         if not file_path.is_file():
             continue
 
@@ -215,60 +313,79 @@ def prepare_index_folders(
         raise ValueError("Не удалось найти файлы с индексами в выбранном каталоге.")
 
     resolver = TzSuffixResolver(tz_file_path)
-    
-    planned_folders = []
-    items_without_suffix = []
+
+    planned_folders: list[PlannedFolder] = []
+    items_without_suffix: list[str] = []
 
     for grouping_key, file_paths in sorted(files_by_key.items()):
         folder_name: str
         suffix: str | None
 
-        if grouping_key.upper().endswith('-C'):
+        if grouping_key.upper().endswith("-C"):
             folder_name = transliterate_cyrillic_to_latin(grouping_key)
             suffix = None  # У C-групп нет суффикса
         else:
             index_match = RE_INDEX_CODE.search(grouping_key)
             if not index_match:
-                _notify(status_callback, f"Пропуск: не удалось выделить индекс из {grouping_key}.")
+                _notify(
+                    status_callback,
+                    f"Пропуск: не удалось выделить индекс из {grouping_key}.",
+                )
                 continue
 
             index_code = index_match.group(1)
             reserved_code = extract_reserved_value(grouping_key)
-            suffix = resolver.find_suffix(index_code, reserved_code)
-            
+            periodicity_code = extract_periodicity_value(grouping_key)
+            suffix = resolver.find_suffix(index_code, reserved_code, periodicity_code)
+
             if not suffix:
-                items_without_suffix.append(f"{index_code} (Reserved={reserved_code or '—'})")
+                items_without_suffix.append(
+                    f"{index_code} (Reserved={reserved_code or '—'}; Periodicity={periodicity_code or '—'})"
+                )
                 if not group_by_suffix:
-                    _notify(status_callback, f"Нет суффикса для {index_code} (Reserved={reserved_code or '—'}).")
+                    _notify(
+                        status_callback,
+                        "Нет суффикса для "
+                        f"{index_code} (Reserved={reserved_code or '—'}; Periodicity={periodicity_code or '—'}).",
+                    )
                     continue
-            
+
             latin_key = transliterate_cyrillic_to_latin(grouping_key)
             folder_name = f"{latin_key}_{suffix}" if suffix else latin_key
 
-        planned_folders.append({
-            "folder_name": folder_name,
-            "suffix": suffix,
-            "grouping_key": grouping_key,
-            "file_paths": file_paths,
-        })
+        planned_folders.append(
+            {
+                "folder_name": folder_name,
+                "suffix": suffix,
+                "grouping_key": grouping_key,
+                "file_paths": file_paths,
+            }
+        )
 
     if group_by_suffix and items_without_suffix:
-        error_msg = "Невозможно сгруппировать по суффиксу. Не найдены суффиксы для следующих групп:\n\n" + "\n".join(items_without_suffix)
+        error_msg = (
+            "Невозможно сгруппировать по суффиксу. Не найдены суффиксы для следующих групп:\n\n"
+            + "\n".join(items_without_suffix)
+        )
         raise ValueError(error_msg)
 
     created_dirs: list[Path] = []
     for plan in planned_folders:
         base_dir = destination_dir
         # Если группировка включена и суффикс есть, создаем подпапку
-        if group_by_suffix and plan["suffix"]:
-            base_dir = destination_dir / plan["suffix"]
-        
+        suffix_value = plan["suffix"]
+        if group_by_suffix and suffix_value:
+            base_dir = destination_dir / suffix_value
+
         target_dir = base_dir / plan["folder_name"]
         target_dir.mkdir(parents=True, exist_ok=True)
         if target_dir not in created_dirs:
             created_dirs.append(target_dir)
 
-        _notify(status_callback, f"Группа {plan['grouping_key']} → {target_dir.relative_to(destination_dir)}")
+        _notify(
+            status_callback,
+            f"Группа {plan['grouping_key']} → {target_dir.relative_to(destination_dir)}",
+        )
 
         for file_path in plan["file_paths"]:
             transferred_path = _transfer_file(file_path, target_dir, is_copy=use_copy)
@@ -279,8 +396,9 @@ def prepare_index_folders(
 
 
 __all__ = [
-    'prepare_index_folders',
-    'transliterate_cyrillic_to_latin',
-    'extract_reserved_value',
-    'TzSuffixResolver',
+    "prepare_index_folders",
+    "transliterate_cyrillic_to_latin",
+    "extract_reserved_value",
+    "extract_periodicity_value",
+    "TzSuffixResolver",
 ]
