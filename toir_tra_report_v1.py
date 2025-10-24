@@ -71,6 +71,9 @@ DEFAULT_COMPANY_NAMES = {
     "VIS": "VIS Company",
     "VLK": "Vulkan Ingenjering",
 }
+DEFAULT_TRANSMITTAL_SENDERS = [
+    "Андреj Дунаев, главни експерт +381 69 801 53 43, dunaevaacmtech.rs",
+]
 # --- Определение путей для .exe и обычного режима ---
 def get_base_path() -> Path:
     """Возвращает базовый путь для ресурсов, работающий и для .exe."""
@@ -85,6 +88,14 @@ BASE_DIR = get_base_path()
 SETTINGS_FILE = BASE_DIR / "settings.json"
 
 # --- Функции для работы с настройками ---
+def build_default_settings() -> dict[str, object]:
+    """Формирует структуру настроек со значениями по умолчанию."""
+    return {
+        "templates_path": "",
+        "company_names": DEFAULT_COMPANY_NAMES.copy(),
+        "senders": list(DEFAULT_TRANSMITTAL_SENDERS),
+    }
+
 def save_settings(settings_data: dict):
     """Сохраняет данные в settings.json."""
     try:
@@ -95,16 +106,17 @@ def save_settings(settings_data: dict):
         print(f"[ОШИБКА] Не удалось сохранить settings.json: {e}")
         return False
 
-def load_settings() -> tuple[Path, dict]:
+def load_settings() -> tuple[Path, dict[str, str], list[str]]:
     """Загружает настройки из settings.json или возвращает значения по умолчанию."""
     default_path = BASE_DIR
-    default_companies = DEFAULT_COMPANY_NAMES
+    default_companies = DEFAULT_COMPANY_NAMES.copy()
+    default_senders = list(DEFAULT_TRANSMITTAL_SENDERS)
     
     if not SETTINGS_FILE.exists():
         # Первый запуск: создаем settings.json
         print(f"Файл настроек не найден. Создание нового: {SETTINGS_FILE}")
-        save_settings({"templates_path": "", "company_names": DEFAULT_COMPANY_NAMES})
-        return default_path, DEFAULT_COMPANY_NAMES
+        save_settings(build_default_settings())
+        return default_path, DEFAULT_COMPANY_NAMES.copy(), list(DEFAULT_TRANSMITTAL_SENDERS)
 
     try:
         with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
@@ -118,12 +130,34 @@ def load_settings() -> tuple[Path, dict]:
         else:
             print(f"Кастомный путь не задан или не найден. Используется путь по умолчанию: {default_path}")
 
-        company_names = settings.get("company_names", default_companies)
-        return final_path, company_names
+        company_names_raw = settings.get("company_names", default_companies)
+        if isinstance(company_names_raw, dict):
+            company_names = company_names_raw
+        else:
+            company_names = default_companies
+
+        senders_raw = settings.get("senders", default_senders)
+        if isinstance(senders_raw, list) and all(isinstance(item, str) for item in senders_raw):
+            senders = senders_raw or default_senders
+        else:
+            senders = default_senders
+
+        # При необходимости дополняем недостающие поля и сохраняем
+        needs_update = False
+        if "senders" not in settings:
+            settings["senders"] = senders
+            needs_update = True
+        if "company_names" not in settings:
+            settings["company_names"] = company_names
+            needs_update = True
+        if needs_update:
+            save_settings(settings)
+
+        return final_path, company_names, senders
 
     except (json.JSONDecodeError, Exception) as e:
         print(f"[ОШИБКА] Не удалось прочитать settings.json: {e}")
-        return default_path, default_companies
+        return default_path, default_companies, default_senders
 
 def ensure_template_structure(base_path: Path):
     """
@@ -160,7 +194,7 @@ def ensure_template_structure(base_path: Path):
         print(f"[ОШИБКА] Не удалось создать подпапки статусов: {e}")
 
 # --- Основные пути ---
-TEMPLATES_ROOT, COMPANY_NAMES = load_settings()
+TEMPLATES_ROOT, COMPANY_NAMES, TRANSMITTAL_SENDERS = load_settings()
 ensure_template_structure(TEMPLATES_ROOT)
 
 TEMPLATE_DIR = TEMPLATES_ROOT / "Template" / "template_tra"
@@ -192,7 +226,14 @@ DATE_PATTERNS = [
 
 # ---------- БИЗНЕС-ЛОГИКА (ОСНОВНОЙ КОД ОБРАБОТКИ) ----------
 
-def process_files(target_dir: Path, template_path: Path, status_callback, create_archive_flag: bool, delete_files_flag: bool):
+def process_files(
+    target_dir: Path,
+    template_path: Path,
+    status_callback,
+    create_archive_flag: bool,
+    delete_files_flag: bool,
+    sender_value: str | None = None,
+):
     """Основная функция для обработки файлов и создания отчета."""
     try:
         status_callback(f"Загрузка шаблона: {template_path.name}")
@@ -205,6 +246,11 @@ def process_files(target_dir: Path, template_path: Path, status_callback, create
 
         wb = load_workbook(template_path)
         ws = wb.active
+
+        if sender_value:
+            status_callback("Заполнение данных отправителя...")
+            if not set_named_cell_value(wb, "pripmem", sender_value):
+                ws["I22"].value = sender_value
 
         status_callback("Запись даты...")
         write_date(ws)
@@ -309,6 +355,42 @@ def write_date(ws):
         cell.value = new
     else:
         cell.value = today
+
+def set_named_cell_value(workbook, defined_name: str, value: str) -> bool:
+    """Записывает значение в именованную ячейку, если она определена."""
+    dn = workbook.defined_names.get(defined_name)
+    if dn is None:
+        return False
+    try:
+        destinations = list(dn.destinations)
+    except Exception:
+        destinations = []
+    for sheet_name, ref in destinations:
+        sheet_key = sheet_name.strip("'") if isinstance(sheet_name, str) else sheet_name
+        if sheet_key not in workbook.sheetnames:
+            continue
+        worksheet = workbook[sheet_key]
+        coord = str(ref).split("!")[-1].replace("$", "")
+        if ":" in coord:
+            try:
+                cells = worksheet[coord]
+            except Exception:
+                continue
+            if isinstance(cells, tuple):
+                first_row = cells[0]
+                if not first_row:
+                    continue
+                target_cell = first_row[0]
+            else:
+                target_cell = cells
+        else:
+            try:
+                target_cell = worksheet[coord]
+            except Exception:
+                continue
+        target_cell.value = value
+        return True
+    return False
 
 def normalize_key(key: str) -> str:
     key = key.upper()
@@ -500,7 +582,7 @@ def create_transmittal_gui():
     """Создает и управляет GUI для выбора папки и шаблона."""
     root = tk.Tk()
     root.title("Формирование трансмиттала v2.6")
-    root.geometry("550x710")
+    root.geometry("550x790")
     root.resizable(False, False)
 
     # --- Стилизация ---
@@ -552,6 +634,7 @@ def create_transmittal_gui():
     selected_folder = tk.StringVar()
     selected_status_key = tk.StringVar(value=list(TEMPLATE_STATUSES.keys())[0])
     selected_template_key = tk.StringVar()
+    selected_sender = tk.StringVar(value=TRANSMITTAL_SENDERS[0] if TRANSMITTAL_SENDERS else "")
     should_create_archive = tk.BooleanVar(value=True)
     should_delete_files = tk.BooleanVar(value=False)
     
@@ -721,6 +804,11 @@ def create_transmittal_gui():
             messagebox.showerror("Ошибка", "Пожалуйста, выберите папку с документами.")
             return
         
+        sender_value = selected_sender.get().strip()
+        if not sender_value:
+            messagebox.showerror("Ошибка", "Пожалуйста, выберите отправителя трансмиттала.")
+            return
+
         status_dir_name = TEMPLATE_STATUSES.get(selected_status_key.get())
         template_file_name = templates_map.get(selected_template_key.get())
 
@@ -735,7 +823,14 @@ def create_transmittal_gui():
             status_label.config(text=message)
             root.update_idletasks()
 
-        process_files(Path(target_dir), template_path, status_update, should_create_archive.get(), should_delete_files.get())
+        process_files(
+            Path(target_dir),
+            template_path,
+            status_update,
+            should_create_archive.get(),
+            should_delete_files.get(),
+            sender_value,
+        )
         run_button.config(state=tk.NORMAL)
 
     # --- Компоновка ---
@@ -750,19 +845,34 @@ def create_transmittal_gui():
     folder_display_label.pack(anchor="w", pady=(5, 10))
     ttk.Button(folder_card, text="Выбрать папку...", command=select_folder, style="TButton").pack(anchor="w")
 
-    # Блок 2: Выбор статуса отправки
+    # Блок 2: Выбор отправителя
+    sender_card = ttk.Frame(main_frame, style="Card.TFrame", padding=15)
+    sender_card.pack(fill=tk.X, pady=5)
+    ttk.Label(sender_card, text="2. Выберите отправителя трансмиттала", style="Header.TLabel").pack(anchor="w")
+    ttk.Label(
+        sender_card,
+        text="Список отправителей настраивается в settings.json.",
+        font=FONT_HELP_TEXT,
+        foreground="#757575",
+        background=FRAME_COLOR,
+        justify=tk.LEFT,
+    ).pack(anchor="w", pady=(5, 10))
+    sender_menu = ttk.OptionMenu(sender_card, selected_sender, selected_sender.get(), *TRANSMITTAL_SENDERS)
+    sender_menu.pack(fill=tk.X)
+
+    # Блок 3: Выбор статуса отправки
     status_card = ttk.Frame(main_frame, style="Card.TFrame", padding=15)
     status_card.pack(fill=tk.X, pady=5)
-    ttk.Label(status_card, text="2. Выберите статус отправки", style="Header.TLabel").pack(anchor="w", pady=(0, 5))
+    ttk.Label(status_card, text="3. Выберите статус отправки", style="Header.TLabel").pack(anchor="w", pady=(0, 5))
     
     for status_text in TEMPLATE_STATUSES.keys():
         rb = ttk.Radiobutton(status_card, text=status_text, variable=selected_status_key, value=status_text, style="TRadiobutton")
         rb.pack(anchor="w", padx=5)
 
-    # Блок 3: Выбор шаблона
+    # Блок 4: Выбор шаблона
     template_card = ttk.Frame(main_frame, style="Card.TFrame", padding=15)
     template_card.pack(fill=tk.X, pady=5)
-    ttk.Label(template_card, text="3. Выберите компанию (шаблон)", style="Header.TLabel").pack(anchor="w")
+    ttk.Label(template_card, text="4. Выберите компанию (шаблон)", style="Header.TLabel").pack(anchor="w")
     
     info_text = ("Подсказка: шаблон выбирается автоматически, если имя папки содержит (GST, TER и т.д.).")
     info_label = ttk.Label(template_card, text=info_text, font=FONT_HELP_TEXT, foreground="#757575", background=FRAME_COLOR, justify=tk.LEFT)
@@ -772,7 +882,7 @@ def create_transmittal_gui():
     template_menu.pack(fill=tk.X)
     template_menu.config(state=tk.DISABLED)
 
-    # Блок 4: Запуск
+    # Блок 5: Запуск
     run_card = ttk.Frame(main_frame, style="Card.TFrame", padding=15)
     run_card.pack(fill=tk.X, pady=5)
     

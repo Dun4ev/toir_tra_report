@@ -1,0 +1,299 @@
+﻿diff --git a/settings.json b/settings.json
+index 6ffdf3d..a1b787a 100644
+--- a/settings.json
++++ b/settings.json
+@@ -33,5 +33,8 @@
+     "TSL": "Tesla Ekspo",
+     "VIS": "VIS Company",
+     "VLK": "Vulkan Ingenjering"
+-  }
+-}
+\ No newline at end of file
++  },
++  "senders": [
++    "╨É╨╜╨┤╤Ç╨╡j ╨ö╤â╨╜╨░╨╡╨▓, ╨│╨╗╨░╨▓╨╜╨╕ ╨╡╨║╤ü╨┐╨╡╤Ç╤é +381 69 801 53 43, dunaevaacmtech.rs"
++  ]
++}
+diff --git a/tests/test_named_cell_value.py b/tests/test_named_cell_value.py
+new file mode 100644
+index 0000000..106e4f4
+--- /dev/null
++++ b/tests/test_named_cell_value.py
+@@ -0,0 +1,24 @@
++from openpyxl import Workbook
++from openpyxl.workbook.defined_name import DefinedName
++
++from toir_tra_report_v1 import set_named_cell_value
++
++
++def test_set_named_cell_value_updates_target_cell():
++    workbook = Workbook()
++    worksheet = workbook.active
++    defined_name = DefinedName(name="pripmem", attr_text=f"'{worksheet.title}'!$I$22")
++    workbook.defined_names[defined_name.name] = defined_name
++
++    result = set_named_cell_value(workbook, "pripmem", "Sample Sender")
++
++    assert result is True
++    assert worksheet["I22"].value == "Sample Sender"
++
++
++def test_set_named_cell_value_missing_defined_name_returns_false():
++    workbook = Workbook()
++
++    result = set_named_cell_value(workbook, "missing", "Sample Sender")
++
++    assert result is False
+diff --git a/toir_tra_report_v1.py b/toir_tra_report_v1.py
+index c705cd0..647a609 100644
+--- a/toir_tra_report_v1.py
++++ b/toir_tra_report_v1.py
+@@ -71,6 +71,9 @@ DEFAULT_COMPANY_NAMES = {
+     "VIS": "VIS Company",
+     "VLK": "Vulkan Ingenjering",
+ }
++DEFAULT_TRANSMITTAL_SENDERS = [
++    "╨É╨╜╨┤╤Ç╨╡j ╨ö╤â╨╜╨░╨╡╨▓, ╨│╨╗╨░╨▓╨╜╨╕ ╨╡╨║╤ü╨┐╨╡╤Ç╤é +381 69 801 53 43, dunaevaacmtech.rs",
++]
+ # --- ╨₧╨┐╤Ç╨╡╨┤╨╡╨╗╨╡╨╜╨╕╨╡ ╨┐╤â╤é╨╡╨╣ ╨┤╨╗╤Å .exe ╨╕ ╨╛╨▒╤ï╤ç╨╜╨╛╨│╨╛ ╤Ç╨╡╨╢╨╕╨╝╨░ ---
+ def get_base_path() -> Path:
+     """╨Æ╨╛╨╖╨▓╤Ç╨░╤ë╨░╨╡╤é ╨▒╨░╨╖╨╛╨▓╤ï╨╣ ╨┐╤â╤é╤î ╨┤╨╗╤Å ╤Ç╨╡╤ü╤â╤Ç╤ü╨╛╨▓, ╤Ç╨░╨▒╨╛╤é╨░╤Ä╤ë╨╕╨╣ ╨╕ ╨┤╨╗╤Å .exe."""
+@@ -85,6 +88,14 @@ BASE_DIR = get_base_path()
+ SETTINGS_FILE = BASE_DIR / "settings.json"
+ 
+ # --- ╨ñ╤â╨╜╨║╤å╨╕╨╕ ╨┤╨╗╤Å ╤Ç╨░╨▒╨╛╤é╤ï ╤ü ╨╜╨░╤ü╤é╤Ç╨╛╨╣╨║╨░╨╝╨╕ ---
++def build_default_settings() -> dict[str, object]:
++    """╨ñ╨╛╤Ç╨╝╨╕╤Ç╤â╨╡╤é ╤ü╤é╤Ç╤â╨║╤é╤â╤Ç╤â ╨╜╨░╤ü╤é╤Ç╨╛╨╡╨║ ╤ü╨╛ ╨╖╨╜╨░╤ç╨╡╨╜╨╕╤Å╨╝╨╕ ╨┐╨╛ ╤â╨╝╨╛╨╗╤ç╨░╨╜╨╕╤Ä."""
++    return {
++        "templates_path": "",
++        "company_names": DEFAULT_COMPANY_NAMES.copy(),
++        "senders": list(DEFAULT_TRANSMITTAL_SENDERS),
++    }
++
+ def save_settings(settings_data: dict):
+     """╨í╨╛╤à╤Ç╨░╨╜╤Å╨╡╤é ╨┤╨░╨╜╨╜╤ï╨╡ ╨▓ settings.json."""
+     try:
+@@ -95,16 +106,17 @@ def save_settings(settings_data: dict):
+         print(f"[╨₧╨¿╨ÿ╨æ╨Ü╨É] ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╤ü╨╛╤à╤Ç╨░╨╜╨╕╤é╤î settings.json: {e}")
+         return False
+ 
+-def load_settings() -> tuple[Path, dict]:
++def load_settings() -> tuple[Path, dict[str, str], list[str]]:
+     """╨ù╨░╨│╤Ç╤â╨╢╨░╨╡╤é ╨╜╨░╤ü╤é╤Ç╨╛╨╣╨║╨╕ ╨╕╨╖ settings.json ╨╕╨╗╨╕ ╨▓╨╛╨╖╨▓╤Ç╨░╤ë╨░╨╡╤é ╨╖╨╜╨░╤ç╨╡╨╜╨╕╤Å ╨┐╨╛ ╤â╨╝╨╛╨╗╤ç╨░╨╜╨╕╤Ä."""
+     default_path = BASE_DIR
+-    default_companies = DEFAULT_COMPANY_NAMES
++    default_companies = DEFAULT_COMPANY_NAMES.copy()
++    default_senders = list(DEFAULT_TRANSMITTAL_SENDERS)
+     
+     if not SETTINGS_FILE.exists():
+         # ╨ƒ╨╡╤Ç╨▓╤ï╨╣ ╨╖╨░╨┐╤â╤ü╨║: ╤ü╨╛╨╖╨┤╨░╨╡╨╝ settings.json
+         print(f"╨ñ╨░╨╣╨╗ ╨╜╨░╤ü╤é╤Ç╨╛╨╡╨║ ╨╜╨╡ ╨╜╨░╨╣╨┤╨╡╨╜. ╨í╨╛╨╖╨┤╨░╨╜╨╕╨╡ ╨╜╨╛╨▓╨╛╨│╨╛: {SETTINGS_FILE}")
+-        save_settings({"templates_path": "", "company_names": DEFAULT_COMPANY_NAMES})
+-        return default_path, DEFAULT_COMPANY_NAMES
++        save_settings(build_default_settings())
++        return default_path, DEFAULT_COMPANY_NAMES.copy(), list(DEFAULT_TRANSMITTAL_SENDERS)
+ 
+     try:
+         with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
+@@ -118,12 +130,34 @@ def load_settings() -> tuple[Path, dict]:
+         else:
+             print(f"╨Ü╨░╤ü╤é╨╛╨╝╨╜╤ï╨╣ ╨┐╤â╤é╤î ╨╜╨╡ ╨╖╨░╨┤╨░╨╜ ╨╕╨╗╨╕ ╨╜╨╡ ╨╜╨░╨╣╨┤╨╡╨╜. ╨ÿ╤ü╨┐╨╛╨╗╤î╨╖╤â╨╡╤é╤ü╤Å ╨┐╤â╤é╤î ╨┐╨╛ ╤â╨╝╨╛╨╗╤ç╨░╨╜╨╕╤Ä: {default_path}")
+ 
+-        company_names = settings.get("company_names", default_companies)
+-        return final_path, company_names
++        company_names_raw = settings.get("company_names", default_companies)
++        if isinstance(company_names_raw, dict):
++            company_names = company_names_raw
++        else:
++            company_names = default_companies
++
++        senders_raw = settings.get("senders", default_senders)
++        if isinstance(senders_raw, list) and all(isinstance(item, str) for item in senders_raw):
++            senders = senders_raw or default_senders
++        else:
++            senders = default_senders
++
++        # ╨ƒ╤Ç╨╕ ╨╜╨╡╨╛╨▒╤à╨╛╨┤╨╕╨╝╨╛╤ü╤é╨╕ ╨┤╨╛╨┐╨╛╨╗╨╜╤Å╨╡╨╝ ╨╜╨╡╨┤╨╛╤ü╤é╨░╤Ä╤ë╨╕╨╡ ╨┐╨╛╨╗╤Å ╨╕ ╤ü╨╛╤à╤Ç╨░╨╜╤Å╨╡╨╝
++        needs_update = False
++        if "senders" not in settings:
++            settings["senders"] = senders
++            needs_update = True
++        if "company_names" not in settings:
++            settings["company_names"] = company_names
++            needs_update = True
++        if needs_update:
++            save_settings(settings)
++
++        return final_path, company_names, senders
+ 
+     except (json.JSONDecodeError, Exception) as e:
+         print(f"[╨₧╨¿╨ÿ╨æ╨Ü╨É] ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╨┐╤Ç╨╛╤ç╨╕╤é╨░╤é╤î settings.json: {e}")
+-        return default_path, default_companies
++        return default_path, default_companies, default_senders
+ 
+ def ensure_template_structure(base_path: Path):
+     """
+@@ -160,7 +194,7 @@ def ensure_template_structure(base_path: Path):
+         print(f"[╨₧╨¿╨ÿ╨æ╨Ü╨É] ╨¥╨╡ ╤â╨┤╨░╨╗╨╛╤ü╤î ╤ü╨╛╨╖╨┤╨░╤é╤î ╨┐╨╛╨┤╨┐╨░╨┐╨║╨╕ ╤ü╤é╨░╤é╤â╤ü╨╛╨▓: {e}")
+ 
+ # --- ╨₧╤ü╨╜╨╛╨▓╨╜╤ï╨╡ ╨┐╤â╤é╨╕ ---
+-TEMPLATES_ROOT, COMPANY_NAMES = load_settings()
++TEMPLATES_ROOT, COMPANY_NAMES, TRANSMITTAL_SENDERS = load_settings()
+ ensure_template_structure(TEMPLATES_ROOT)
+ 
+ TEMPLATE_DIR = TEMPLATES_ROOT / "Template" / "template_tra"
+@@ -192,7 +226,14 @@ DATE_PATTERNS = [
+ 
+ # ---------- ╨æ╨ÿ╨ù╨¥╨ò╨í-╨¢╨₧╨ô╨ÿ╨Ü╨É (╨₧╨í╨¥╨₧╨Æ╨¥╨₧╨Ö ╨Ü╨₧╨ö ╨₧╨æ╨á╨É╨æ╨₧╨ó╨Ü╨ÿ) ----------
+ 
+-def process_files(target_dir: Path, template_path: Path, status_callback, create_archive_flag: bool, delete_files_flag: bool):
++def process_files(
++    target_dir: Path,
++    template_path: Path,
++    status_callback,
++    create_archive_flag: bool,
++    delete_files_flag: bool,
++    sender_value: str | None = None,
++):
+     """╨₧╤ü╨╜╨╛╨▓╨╜╨░╤Å ╤ä╤â╨╜╨║╤å╨╕╤Å ╨┤╨╗╤Å ╨╛╨▒╤Ç╨░╨▒╨╛╤é╨║╨╕ ╤ä╨░╨╣╨╗╨╛╨▓ ╨╕ ╤ü╨╛╨╖╨┤╨░╨╜╨╕╤Å ╨╛╤é╤ç╨╡╤é╨░."""
+     try:
+         status_callback(f"╨ù╨░╨│╤Ç╤â╨╖╨║╨░ ╤ê╨░╨▒╨╗╨╛╨╜╨░: {template_path.name}")
+@@ -206,6 +247,11 @@ def process_files(target_dir: Path, template_path: Path, status_callback, create
+         wb = load_workbook(template_path)
+         ws = wb.active
+ 
++        if sender_value:
++            status_callback("╨ù╨░╨┐╨╛╨╗╨╜╨╡╨╜╨╕╨╡ ╨┤╨░╨╜╨╜╤ï╤à ╨╛╤é╨┐╤Ç╨░╨▓╨╕╤é╨╡╨╗╤Å...")
++            if not set_named_cell_value(wb, "pripmem", sender_value):
++                ws["I22"].value = sender_value
++
+         status_callback("╨ù╨░╨┐╨╕╤ü╤î ╨┤╨░╤é╤ï...")
+         write_date(ws)
+ 
+@@ -310,6 +356,42 @@ def write_date(ws):
+     else:
+         cell.value = today
+ 
++def set_named_cell_value(workbook, defined_name: str, value: str) -> bool:
++    """╨ù╨░╨┐╨╕╤ü╤ï╨▓╨░╨╡╤é ╨╖╨╜╨░╤ç╨╡╨╜╨╕╨╡ ╨▓ ╨╕╨╝╨╡╨╜╨╛╨▓╨░╨╜╨╜╤â╤Ä ╤Å╤ç╨╡╨╣╨║╤â, ╨╡╤ü╨╗╨╕ ╨╛╨╜╨░ ╨╛╨┐╤Ç╨╡╨┤╨╡╨╗╨╡╨╜╨░."""
++    dn = workbook.defined_names.get(defined_name)
++    if dn is None:
++        return False
++    try:
++        destinations = list(dn.destinations)
++    except Exception:
++        destinations = []
++    for sheet_name, ref in destinations:
++        sheet_key = sheet_name.strip("'") if isinstance(sheet_name, str) else sheet_name
++        if sheet_key not in workbook.sheetnames:
++            continue
++        worksheet = workbook[sheet_key]
++        coord = str(ref).split("!")[-1].replace("$", "")
++        if ":" in coord:
++            try:
++                cells = worksheet[coord]
++            except Exception:
++                continue
++            if isinstance(cells, tuple):
++                first_row = cells[0]
++                if not first_row:
++                    continue
++                target_cell = first_row[0]
++            else:
++                target_cell = cells
++        else:
++            try:
++                target_cell = worksheet[coord]
++            except Exception:
++                continue
++        target_cell.value = value
++        return True
++    return False
++
+ def normalize_key(key: str) -> str:
+     key = key.upper()
+     replacements = {'A': '╨É', 'B': '╨æ', 'V': '╨Æ', 'G': '╨ô'}
+@@ -552,6 +634,7 @@ def create_transmittal_gui():
+     selected_folder = tk.StringVar()
+     selected_status_key = tk.StringVar(value=list(TEMPLATE_STATUSES.keys())[0])
+     selected_template_key = tk.StringVar()
++    selected_sender = tk.StringVar(value=TRANSMITTAL_SENDERS[0] if TRANSMITTAL_SENDERS else "")
+     should_create_archive = tk.BooleanVar(value=True)
+     should_delete_files = tk.BooleanVar(value=False)
+     
+@@ -721,6 +804,11 @@ def create_transmittal_gui():
+             messagebox.showerror("╨₧╤ê╨╕╨▒╨║╨░", "╨ƒ╨╛╨╢╨░╨╗╤â╨╣╤ü╤é╨░, ╨▓╤ï╨▒╨╡╤Ç╨╕╤é╨╡ ╨┐╨░╨┐╨║╤â ╤ü ╨┤╨╛╨║╤â╨╝╨╡╨╜╤é╨░╨╝╨╕.")
+             return
+         
++        sender_value = selected_sender.get().strip()
++        if not sender_value:
++            messagebox.showerror("╨₧╤ê╨╕╨▒╨║╨░", "╨ƒ╨╛╨╢╨░╨╗╤â╨╣╤ü╤é╨░, ╨▓╤ï╨▒╨╡╤Ç╨╕╤é╨╡ ╨╛╤é╨┐╤Ç╨░╨▓╨╕╤é╨╡╨╗╤Å ╤é╤Ç╨░╨╜╤ü╨╝╨╕╤é╤é╨░╨╗╨░.")
++            return
++
+         status_dir_name = TEMPLATE_STATUSES.get(selected_status_key.get())
+         template_file_name = templates_map.get(selected_template_key.get())
+ 
+@@ -735,7 +823,14 @@ def create_transmittal_gui():
+             status_label.config(text=message)
+             root.update_idletasks()
+ 
+-        process_files(Path(target_dir), template_path, status_update, should_create_archive.get(), should_delete_files.get())
++        process_files(
++            Path(target_dir),
++            template_path,
++            status_update,
++            should_create_archive.get(),
++            should_delete_files.get(),
++            sender_value,
++        )
+         run_button.config(state=tk.NORMAL)
+ 
+     # --- ╨Ü╨╛╨╝╨┐╨╛╨╜╨╛╨▓╨║╨░ ---
+@@ -750,19 +845,34 @@ def create_transmittal_gui():
+     folder_display_label.pack(anchor="w", pady=(5, 10))
+     ttk.Button(folder_card, text="╨Æ╤ï╨▒╤Ç╨░╤é╤î ╨┐╨░╨┐╨║╤â...", command=select_folder, style="TButton").pack(anchor="w")
+ 
+-    # ╨æ╨╗╨╛╨║ 2: ╨Æ╤ï╨▒╨╛╤Ç ╤ü╤é╨░╤é╤â╤ü╨░ ╨╛╤é╨┐╤Ç╨░╨▓╨║╨╕
++    # ╨æ╨╗╨╛╨║ 2: ╨Æ╤ï╨▒╨╛╤Ç ╨╛╤é╨┐╤Ç╨░╨▓╨╕╤é╨╡╨╗╤Å
++    sender_card = ttk.Frame(main_frame, style="Card.TFrame", padding=15)
++    sender_card.pack(fill=tk.X, pady=5)
++    ttk.Label(sender_card, text="2. ╨Æ╤ï╨▒╨╡╤Ç╨╕╤é╨╡ ╨╛╤é╨┐╤Ç╨░╨▓╨╕╤é╨╡╨╗╤Å ╤é╤Ç╨░╨╜╤ü╨╝╨╕╤é╤é╨░╨╗╨░", style="Header.TLabel").pack(anchor="w")
++    ttk.Label(
++        sender_card,
++        text="╨í╨┐╨╕╤ü╨╛╨║ ╨╛╤é╨┐╤Ç╨░╨▓╨╕╤é╨╡╨╗╨╡╨╣ ╨╜╨░╤ü╤é╤Ç╨░╨╕╨▓╨░╨╡╤é╤ü╤Å ╨▓ settings.json.",
++        font=FONT_HELP_TEXT,
++        foreground="#757575",
++        background=FRAME_COLOR,
++        justify=tk.LEFT,
++    ).pack(anchor="w", pady=(5, 10))
++    sender_menu = ttk.OptionMenu(sender_card, selected_sender, selected_sender.get(), *TRANSMITTAL_SENDERS)
++    sender_menu.pack(fill=tk.X)
++
++    # ╨æ╨╗╨╛╨║ 3: ╨Æ╤ï╨▒╨╛╤Ç ╤ü╤é╨░╤é╤â╤ü╨░ ╨╛╤é╨┐╤Ç╨░╨▓╨║╨╕
+     status_card = ttk.Frame(main_frame, style="Card.TFrame", padding=15)
+     status_card.pack(fill=tk.X, pady=5)
+-    ttk.Label(status_card, text="2. ╨Æ╤ï╨▒╨╡╤Ç╨╕╤é╨╡ ╤ü╤é╨░╤é╤â╤ü ╨╛╤é╨┐╤Ç╨░╨▓╨║╨╕", style="Header.TLabel").pack(anchor="w", pady=(0, 5))
++    ttk.Label(status_card, text="3. ╨Æ╤ï╨▒╨╡╤Ç╨╕╤é╨╡ ╤ü╤é╨░╤é╤â╤ü ╨╛╤é╨┐╤Ç╨░╨▓╨║╨╕", style="Header.TLabel").pack(anchor="w", pady=(0, 5))
+     
+     for status_text in TEMPLATE_STATUSES.keys():
+         rb = ttk.Radiobutton(status_card, text=status_text, variable=selected_status_key, value=status_text, style="TRadiobutton")
+         rb.pack(anchor="w", padx=5)
+ 
+-    # ╨æ╨╗╨╛╨║ 3: ╨Æ╤ï╨▒╨╛╤Ç ╤ê╨░╨▒╨╗╨╛╨╜╨░
++    # ╨æ╨╗╨╛╨║ 4: ╨Æ╤ï╨▒╨╛╤Ç ╤ê╨░╨▒╨╗╨╛╨╜╨░
+     template_card = ttk.Frame(main_frame, style="Card.TFrame", padding=15)
+     template_card.pack(fill=tk.X, pady=5)
+-    ttk.Label(template_card, text="3. ╨Æ╤ï╨▒╨╡╤Ç╨╕╤é╨╡ ╨║╨╛╨╝╨┐╨░╨╜╨╕╤Ä (╤ê╨░╨▒╨╗╨╛╨╜)", style="Header.TLabel").pack(anchor="w")
++    ttk.Label(template_card, text="4. ╨Æ╤ï╨▒╨╡╤Ç╨╕╤é╨╡ ╨║╨╛╨╝╨┐╨░╨╜╨╕╤Ä (╤ê╨░╨▒╨╗╨╛╨╜)", style="Header.TLabel").pack(anchor="w")
+     
+     info_text = ("╨ƒ╨╛╨┤╤ü╨║╨░╨╖╨║╨░: ╤ê╨░╨▒╨╗╨╛╨╜ ╨▓╤ï╨▒╨╕╤Ç╨░╨╡╤é╤ü╤Å ╨░╨▓╤é╨╛╨╝╨░╤é╨╕╤ç╨╡╤ü╨║╨╕, ╨╡╤ü╨╗╨╕ ╨╕╨╝╤Å ╨┐╨░╨┐╨║╨╕ ╤ü╨╛╨┤╨╡╤Ç╨╢╨╕╤é (GST, TER ╨╕ ╤é.╨┤.).")
+     info_label = ttk.Label(template_card, text=info_text, font=FONT_HELP_TEXT, foreground="#757575", background=FRAME_COLOR, justify=tk.LEFT)
+@@ -772,7 +882,7 @@ def create_transmittal_gui():
+     template_menu.pack(fill=tk.X)
+     template_menu.config(state=tk.DISABLED)
+ 
+-    # ╨æ╨╗╨╛╨║ 4: ╨ù╨░╨┐╤â╤ü╨║
++    # ╨æ╨╗╨╛╨║ 5: ╨ù╨░╨┐╤â╤ü╨║
+     run_card = ttk.Frame(main_frame, style="Card.TFrame", padding=15)
+     run_card.pack(fill=tk.X, pady=5)
+     
