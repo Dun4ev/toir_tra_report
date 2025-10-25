@@ -4,7 +4,7 @@
 
 - `toir_tra_report` — настольное приложение на Tkinter для подготовки пакетов документов ТОиР.
 - Основные сценарии: генерация Excel-писем (`CT-*-TRA-PRM-*.xlsx`), формирование индексных папок для `CT-DR-*`, выпуск CMM-комментариев по шаблону.
-- Рабочий справочник данных: `Template/TZ_glob.xlsx`; пользовательские пути и компании — `settings.json`.
+- Рабочий справочник данных: `Template/TZ_glob.xlsx`; пользовательские пути, компании и отправители трансмитталов — `settings.json`.
 
 ## Архитектура (слои)
 
@@ -27,7 +27,7 @@
 - Команды выполняются в виртуальном окружении (`python -m venv .venv`; `pip install -r requirements.txt`).
 - Патчи не выкладываем в чат — сохраняем в `patches/{timestamp}-{slug}.diff`.
 - Pull Request checklist: README ✅ / CHANGELOG ✅ / SemVer ✅ / Tests ✅ / AGENTS.md (при изменении правил) ✅.
-- Версия приложения для сборки: PyInstaller-спеки `toir_tra_report_v2.7.spec` (обновлять при bump версии).
+- Версия приложения для сборки: PyInstaller-спеки `toir_tra_report_v3.0.spec` (обновлять при bump версии).
 
 ## Quality Gates (обязательные)
 

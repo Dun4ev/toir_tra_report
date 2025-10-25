@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0] - 2025-10-24
+### Added
+- Блок выбора отправителя трансмиттала во вкладке «Формирование трансмиттала» с подстановкой данных в именованную ячейку `pripmem` (ячейка `I22`).
+- Справочник отправителей (`senders`) в `settings.json` с дефолтными значениями и возможностью ручного расширения.
+- Модульный тест `tests/test_named_cell_value.py` для проверки записи значений в именованные ячейки.
+
+### Changed
+- Заголовок окна приложения обновлён до `v3.0`; добавлена PyInstaller-спека `toir_tra_report_v3.0.spec`.
+
 ## [2.7] - 2025-10-16
 ### Added
 - Учет периодичности из `TZ_glob.xlsx` (колонка E) при подборе суффиксов индексных папок.

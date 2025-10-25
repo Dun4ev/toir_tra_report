@@ -72,7 +72,8 @@ DEFAULT_COMPANY_NAMES = {
     "VLK": "Vulkan Ingenjering",
 }
 DEFAULT_TRANSMITTAL_SENDERS = [
-    "Андреj Дунаев, главни експерт +381 69 801 53 43, dunaevaacmtech.rs",
+    "Андреj Дунаев, главни експерт +381 69 801 53 43, dunaevaa@cmtech.rs",
+    "Анатолиј Крамар, главни експерт +381 69 807 65 37, kramaras@cmtech.rs"
 ]
 # --- Определение путей для .exe и обычного режима ---
 def get_base_path() -> Path:
@@ -581,7 +582,7 @@ def save_with_increment(wb, out_dir: Path, prefix="CT-GST-TRA-PRM-"):
 def create_transmittal_gui():
     """Создает и управляет GUI для выбора папки и шаблона."""
     root = tk.Tk()
-    root.title("Формирование трансмиттала v2.6")
+    root.title("Формирование трансмиттала v3.0")
     root.geometry("550x790")
     root.resizable(False, False)
 
