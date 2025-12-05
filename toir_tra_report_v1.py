@@ -104,7 +104,7 @@ def save_settings(settings_data: dict):
     """Сохраняет данные в settings.json."""
     try:
         with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(settings_data, f, indent=2)
+            json.dump(settings_data, f, indent=2, ensure_ascii=False)
         return True
     except Exception as e:
         print(f"[ОШИБКА] Не удалось сохранить settings.json: {e}")
@@ -557,12 +557,11 @@ def fill_rows(ws, files, tz_map: dict, start_row: int, final_footer_row: int):
         idx = extract_index_from_name(p.name)
         base_naziv = tz_map.get(normalize_key(idx), "") if idx else ""
         final_naziv = ""
-        if base_naziv:
-            prefix = ""
-            if "-C-" in p.name.upper(): prefix += "Корективно одржавање. "
-            if "-MOM-" in p.name.upper(): prefix += "Записник са састанка Организација рада. "
-            if "_CMM" in p.name.upper(): prefix += "Листа коментара уз документ. "
-            final_naziv = prefix + base_naziv
+        prefix = ""
+        if "-C-" in p.name.upper(): prefix += "Корективно одржавање. "
+        if "-MOM-" in p.name.upper(): prefix += "Записник са састанка Организација рада. "
+        if "_CMM" in p.name.upper(): prefix += "Листа коментара уз документ. "
+        final_naziv = (prefix + base_naziv).strip()
         naziv_cell = ws.cell(r, COL_NZ)
         naziv_cell.value = final_naziv
         naziv_cell.alignment = Alignment(wrap_text=True, horizontal='center', vertical='center')
