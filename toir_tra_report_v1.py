@@ -559,7 +559,7 @@ def fill_rows(ws, files, tz_map: dict, start_row: int, final_footer_row: int):
         final_naziv = ""
         prefix = ""
         if "-C-" in p.name.upper(): prefix += "Корективно одржавање. "
-        if "-MOM-" in p.name.upper(): prefix += "Записник са састанка Организација рада. "
+        if "-MOM-" in p.name.upper(): prefix += "Записник са састанка Организација рада "
         if "_CMM" in p.name.upper(): prefix += "Листа коментара уз документ. "
         final_naziv = (prefix + base_naziv).strip()
         naziv_cell = ws.cell(r, COL_NZ)
@@ -585,7 +585,7 @@ def save_with_increment(wb, out_dir: Path, prefix="CT-GST-TRA-PRM-"):
 def create_transmittal_gui():
     """Создает и управляет GUI для выбора папки и шаблона."""
     root = tk.Tk()
-    root.title("Формирование трансмиттала v3.3")
+    root.title("Формирование трансмиттала v3.4")
     root.geometry("550x790")
     root.resizable(False, False)
 
