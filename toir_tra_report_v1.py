@@ -72,8 +72,11 @@ DEFAULT_COMPANY_NAMES = {
     "VLK": "Vulkan Ingenjering",
 }
 DEFAULT_TRANSMITTAL_SENDERS = [
+    "Анна Холина, Главни експерт за документациону подршку, +381 64 013 87 68, kholinaae@cmtech.rs",
+    "Чворовић И.; Стручњак апарата при руководству; +381 64 365 46 40; cvorovic@cmtech.rs",
     "Андреj Дунаев, главни експерт +381 69 801 53 43, dunaevaa@cmtech.rs",
     "Анатолиј Крамар, главни експерт +381 69 807 65 37, kramaras@cmtech.rs"
+    #"Андреj Дунаев, главни експерт +381 69 801 53 43, dunaevaa@cmtech.rs"
 ]
 # --- Определение путей для .exe и обычного режима ---
 def get_base_path() -> Path:
@@ -557,6 +560,7 @@ def fill_rows(ws, files, tz_map: dict, start_row: int, final_footer_row: int):
         if base_naziv:
             prefix = ""
             if "-C-" in p.name.upper(): prefix += "Корективно одржавање. "
+            if "-MOM-" in p.name.upper(): prefix += "Записник са састанка Организација рада. "
             if "_CMM" in p.name.upper(): prefix += "Листа коментара уз документ. "
             final_naziv = prefix + base_naziv
         naziv_cell = ws.cell(r, COL_NZ)
@@ -582,7 +586,7 @@ def save_with_increment(wb, out_dir: Path, prefix="CT-GST-TRA-PRM-"):
 def create_transmittal_gui():
     """Создает и управляет GUI для выбора папки и шаблона."""
     root = tk.Tk()
-    root.title("Формирование трансмиттала v3.0")
+    root.title("Формирование трансмиттала v3.3")
     root.geometry("550x790")
     root.resizable(False, False)
 
